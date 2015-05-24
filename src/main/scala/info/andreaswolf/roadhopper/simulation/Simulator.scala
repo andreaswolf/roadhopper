@@ -13,7 +13,8 @@ class Simulator(val route: Route, val vehicle: Vehicle, val timestep: Int = 40) 
 	val logger = LoggerFactory.getLogger(this.getClass)
 
 	def simulate(): Journey = {
-		val initialStep = new SimulationStep()
+		// TODO replace this by proper initialization
+		val initialStep = new SimulationStep(0, 0, new VehicleState(1.0, 0))
 
 		var steps = new util.LinkedList[SimulationStep]()
 		steps.add(initialStep)

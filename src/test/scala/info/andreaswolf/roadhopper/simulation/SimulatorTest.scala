@@ -13,7 +13,14 @@ class SimulatorTest extends FunSuite {
 		val route = new Route(List(new RoadSegment(10)))
 		val journey = new Simulator(route, new Vehicle(10,10)).simulate()
 
-		Assert.assertEquals(10.0, journey.steps.get(journey.steps.size() - 1).position);
+		Assert.assertEquals(10.0, journey.steps.get(journey.steps.size() - 1).position)
+	}
+
+	test("A journey can go over several road segments") {
+		val route = new Route(List(new RoadSegment(250), new RoadSegment(100)))
+		val journey = new Simulator(route, new Vehicle(10, 10)).simulate()
+
+		Assert.assertEquals(350.0, journey.steps.get(journey.steps.size() - 1).position)
 	}
 
 }
