@@ -14,4 +14,26 @@ class RouteTest extends org.scalatest.FunSuite {
 		Assert.assertEquals(150.0f, new Route(list).length)
 	}
 
+	test("A segment in the route can be retrieved by position") {
+		val list = List(new RoadSegment(100.0f), new RoadSegment(50.0f), new RoadSegment(25.0f))
+		val route = new Route(list)
+
+		Assert.assertTrue(route.getSegmentForPosition(50.0) == list.head)
+		Assert.assertTrue(route.getSegmentForPosition(100.0) == list.head)
+		Assert.assertTrue(route.getSegmentForPosition(100.1) == list.toArray.apply(1))
+		Assert.assertTrue(route.getSegmentForPosition(125.0) == list.toArray.apply(1))
+		Assert.assertTrue(route.getSegmentForPosition(150.0) == list.toArray.apply(1))
+		Assert.assertTrue(route.getSegmentForPosition(150.1) == list.toArray.apply(2))
+		Assert.assertTrue(route.getSegmentForPosition(175.0) == list.toArray.apply(2))
+	}
+
+	test("Accessing a route segment out of the bounds leads to an exception") {
+		val list = List(new RoadSegment(100.0f), new RoadSegment(50.0f), new RoadSegment(25.0f))
+		val route = new Route(list)
+
+		intercept[IllegalArgumentException] {
+			route.getSegmentForPosition(175.1)
+		}
+	}
+
 }
