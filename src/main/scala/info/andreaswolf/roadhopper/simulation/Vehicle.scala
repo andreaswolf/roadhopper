@@ -6,10 +6,15 @@ package info.andreaswolf.roadhopper.simulation
  * @param maxAcceleration The maximum acceleration in meters per square second (m/(s^2^))
  * @param maxSpeed The maximum speed in meters per second
  */
-class Vehicle(val maxAcceleration: Float, val maxSpeed: Int) {
+class Vehicle(val maxAcceleration: Float, val maxSpeed: Double) {
 
 	def calculateNewState(currentState: VehicleState, delta: Int): VehicleState = {
-		// TODO implement proper calculation
-		new VehicleState(0, 10)
+		val speed = Math.min(maxSpeed, currentState.currentSpeed + (currentState.currentAcceleration * delta / 1000))
+		var acceleration = 0.0
+		if (speed < maxSpeed) {
+			acceleration = currentState.currentAcceleration
+		}
+
+		new VehicleState(acceleration, speed)
 	}
 }
