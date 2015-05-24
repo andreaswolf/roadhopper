@@ -2,7 +2,7 @@ package info.andreaswolf.roadhopper.simulation
 
 import java.util
 
-import info.andreaswolf.roadhopper.road.Route
+import info.andreaswolf.roadhopper.road.{RoadSegment, Route}
 import org.slf4j.LoggerFactory
 
 /**
@@ -15,13 +15,22 @@ class Simulator(val route: Route, val vehicle: Vehicle, val timestep: Int = 40) 
 	def simulate(): Journey = {
 		// TODO replace this by proper initialization
 		val initialStep = new SimulationStep(0, 0, new VehicleState(1.0, 0))
+		logger.info("Starting simulation")
 
-		var steps = new util.LinkedList[SimulationStep]()
+		val steps = new util.LinkedList[SimulationStep]()
 		steps.add(initialStep)
 		var currentStep = initialStep
+
+		val roadSegments: List[RoadSegment] = route.getRoadSegments
+		var currentSegment = roadSegments.head
 		while (currentStep.position < route.length) {
 			currentStep = this.advance(currentStep, timestep)
 			steps.add(currentStep)
+
+			if (route.getSegmentForPosition(currentStep.position) != currentSegment) {
+				logger.debug("Changed road segment at " + currentStep.time + " ms")
+				currentSegment = route.getSegmentForPosition(currentStep.position)
+			}
 		}
 
 		new Journey(steps)
@@ -32,7 +41,6 @@ class Simulator(val route: Route, val vehicle: Vehicle, val timestep: Int = 40) 
 	 */
 	protected def advance(lastState: SimulationStep, delta: Int): SimulationStep = {
 		val time = lastState.time + delta
-		logger.debug("Simulating time " + time)
 
 		val position = Math.min(route.length, lastState.position + lastState.vehicleState.speed * delta / 1000)
 		val vehicleState = vehicle.calculateNewState(lastState.vehicleState, delta)
