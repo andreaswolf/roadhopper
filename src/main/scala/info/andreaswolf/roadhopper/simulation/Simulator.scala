@@ -14,7 +14,7 @@ class Simulator(val route: Route, val vehicle: Vehicle, val timestep: Int = 40) 
 
 	def simulate(): Journey = {
 		// TODO replace this by proper initialization
-		val initialStep = SimulationStep.initial(new VehicleState(1.0, 0))
+		val initialStep = SimulationStep.initial(new VehicleState(1.0, 0, 0.0, driverInput = new DriverInput(0.0)))
 		logger.info("Starting simulation")
 
 		val steps = new util.LinkedList[SimulationStep]()

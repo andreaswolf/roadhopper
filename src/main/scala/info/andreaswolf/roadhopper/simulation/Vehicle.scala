@@ -15,6 +15,6 @@ class Vehicle(val maxAcceleration: Float, val maxSpeed: Double) {
 			acceleration = currentState.acceleration
 		}
 
-		new VehicleState(acceleration, speed)
+		new VehicleState(acceleration, speed, 0.0, driverInput = new DriverInput(0.0))
 	}
 }
