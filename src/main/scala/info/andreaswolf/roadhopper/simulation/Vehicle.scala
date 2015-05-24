@@ -9,10 +9,10 @@ package info.andreaswolf.roadhopper.simulation
 class Vehicle(val maxAcceleration: Float, val maxSpeed: Double) {
 
 	def calculateNewState(currentState: VehicleState, delta: Int): VehicleState = {
-		val speed = Math.min(maxSpeed, currentState.currentSpeed + (currentState.currentAcceleration * delta / 1000))
+		val speed = Math.min(maxSpeed, currentState.speed + (currentState.acceleration * delta / 1000))
 		var acceleration = 0.0
 		if (speed < maxSpeed) {
-			acceleration = currentState.currentAcceleration
+			acceleration = currentState.acceleration
 		}
 
 		new VehicleState(acceleration, speed)

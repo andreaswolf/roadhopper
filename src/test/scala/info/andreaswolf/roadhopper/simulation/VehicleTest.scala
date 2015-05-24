@@ -13,13 +13,13 @@ class VehicleTest extends FunSuite {
 	test("Speed is kept constant for no acceleration") {
 		val oldState = new VehicleState(0, 8)
 
-		Assert.assertEquals(oldState.currentSpeed, subject.calculateNewState(oldState, 100).currentSpeed)
+		Assert.assertEquals(oldState.speed, subject.calculateNewState(oldState, 100).speed)
 	}
 
 	test("Speed is increased for constant acceleration") {
 		val oldState = new VehicleState(1.0, 10)
 
-		Assert.assertEquals(11.0, subject.calculateNewState(oldState, 1000).currentSpeed)
+		Assert.assertEquals(11.0, subject.calculateNewState(oldState, 1000).speed)
 	}
 
 	test("Speed is changed accordingly in next step if acceleration decreases") {
@@ -33,14 +33,14 @@ class VehicleTest extends FunSuite {
 			state = subject.calculateNewState(state, 1000)
 		}
 
-		Assert.assertEquals(20.0, state.currentSpeed)
+		Assert.assertEquals(20.0, state.speed)
 	}
 
 	test("Acceleration is set to zero if maximum speed is reached") {
 		val state = new VehicleState(3.0, 19.5)
 		val newState = subject.calculateNewState(state, 1000)
 
-		Assert.assertEquals(0.0, newState.currentAcceleration)
+		Assert.assertEquals(0.0, newState.acceleration)
 	}
 
 }

@@ -33,7 +33,7 @@ class Simulator(val route: Route, val vehicle: Vehicle, val timestep: Int = 40) 
 		val time = lastState.time + delta
 		logger.debug("Simulating time " + time)
 
-		val position = Math.min(route.length, lastState.position + lastState.vehicleState.currentSpeed * delta / 1000)
+		val position = Math.min(route.length, lastState.position + lastState.vehicleState.speed * delta / 1000)
 		val vehicleState = vehicle.calculateNewState(lastState.vehicleState, delta)
 		new SimulationStep(time, position, vehicleState)
 	}
