@@ -4,7 +4,7 @@ package info.andreaswolf.roadhopper.road
  *
  * @param orientation The orientation in polar coordinates (-pi..+pi, 0 = east)
  */
-class RoadSegment(val length: Float, var orientation: Double = 0.0) extends RoutePart {
+class RoadSegment(val length: Double, var orientation: Double = 0.0) extends RoutePart {
 	// correct orientation to be in (-pi..+pi]
 	orientation %= (Math.PI * 2)
 	if (orientation == -Math.PI)

@@ -7,7 +7,7 @@ class Route(val parts: List[RoutePart]) {
 	 *
 	 * @return
 	 */
-	def length: Float = getRoadSegments.map(_.length).sum
+	def length: Double = getRoadSegments.map(_.length).sum
 
 	/**
 	 * @return All parts of the route that are road segments
@@ -29,6 +29,20 @@ class Route(val parts: List[RoutePart]) {
 			}
 		}
 		getRoadSegments.reverse.head // TODO can this be done in a simpler fashion?
+	}
+
+	/**
+	 * Returns a list of (x, y) pairs for the road segment points.
+	 */
+	def roadSegmentCoordinates: List[Tuple2[Double, Double]] = {
+		val coordinates = getRoadSegments map ((s: RoadSegment) => {
+			val angle = s.orientation
+			val x = Math.cos(angle) * s.length
+			val y = Math.sin(angle) * s.length
+			new Tuple2(x, y)
+		})
+
+		new Tuple2(0.0, 0.0) :: coordinates
 	}
 
 }

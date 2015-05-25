@@ -36,4 +36,11 @@ class RouteTest extends org.scalatest.FunSuite {
 		}
 	}
 
+	test("Coordinates for route points can be fetched") {
+		val segments = List(new RoadSegment(100.0f))
+		val route = new Route(segments)
+
+		Assert.assertEquals(List(new Tuple2(0.0, 0.0), new Tuple2(100.0f, 0.0)), route.roadSegmentCoordinates)
+	}
+
 }
