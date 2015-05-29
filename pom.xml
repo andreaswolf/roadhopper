@@ -15,6 +15,7 @@
 
 		<slf4j.version>1.7.10</slf4j.version>
 		<log4j.version>1.2.17</log4j.version>
+		<akka.version>2.3.11</akka.version>
 	</properties>
 
 	<!-- TODO find out if we really want to have this -->
@@ -58,6 +59,17 @@
 			<artifactId>javax.servlet-api</artifactId>
 			<version>3.1.0</version>
 			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-actor_2.11</artifactId>
+			<version>${akka.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-slf4j_2.11</artifactId>
+			<version>${akka.version}</version>
 		</dependency>
 
 		<dependency>

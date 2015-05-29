@@ -1,5 +1,7 @@
 package info.andreaswolf.roadhopper.simulation
 
+import akka.actor.{Actor, ActorRef}
+
 /**
  * Simple representation of a vehicle
  *
@@ -16,5 +18,18 @@ class Vehicle(val maxAcceleration: Float, val maxSpeed: Double) {
 		}
 
 		new VehicleState(acceleration, speed, 0.0, driverInput = new DriverInput(0.0))
+	}
+}
+
+class VehicleActor(val timer: ActorRef) extends Actor {
+	var steps = 0
+
+	override def receive: Receive = {
+		case Step(time) =>
+			println("Reached step " + time)
+			steps += 1
+			if (steps < 5) {
+				timer ! new TimerRequest(self, time + 10)
+			}
 	}
 }
