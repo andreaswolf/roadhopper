@@ -29,7 +29,7 @@ class VehicleActor(val timer: ActorRef) extends Actor {
 			println("Reached step " + time)
 			steps += 1
 			if (steps < 5) {
-				timer ! new TimerRequest(time + 10)
+				timer ! new ScheduleRequest(time + 10)
 			}
 	}
 }

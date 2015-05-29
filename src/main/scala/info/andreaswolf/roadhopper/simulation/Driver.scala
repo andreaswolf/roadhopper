@@ -23,7 +23,7 @@ class DriverActor(val timer: ActorRef) extends Actor {
 			println("Driver reached " + time)
 			steps += 1
 			if (steps < 5) {
-				timer ! new TimerRequest(time + 40)
+				timer ! new ScheduleRequest(time + 40)
 			}
 	}
 }
