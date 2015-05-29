@@ -28,11 +28,11 @@ class ActorBasedSimulation {
 	// TODO this should be moved to a separate method registerComponent()
 	val vehicle = actorSystem.actorOf(Props(new VehicleActor(timer)), "vehicle")
 	ActorBasedSimulation.timeBus.subscribe(vehicle, "time.step")
-	timer ! new TimerRequest(vehicle, 0)
+	timer.tell(new TimerRequest(0), vehicle)
 
 	val driver = actorSystem.actorOf(Props(new DriverActor(timer)), "driver")
 	ActorBasedSimulation.timeBus.subscribe(driver, "time.step")
-	timer ! new TimerRequest(driver, 0)
+	timer.tell(new TimerRequest(0), driver)
 
 	def shutdown() = actorSystem.shutdown()
 }

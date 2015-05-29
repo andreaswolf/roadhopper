@@ -6,7 +6,7 @@ import scala.collection.mutable
 
 case class Step(time: Int)
 case class Start()
-case class TimerRequest(actorRef: ActorRef, time: Int)
+case class TimerRequest(time: Int)
 
 class SimulationTimerActor extends Actor {
 	var currentTime: Int = 0
@@ -19,8 +19,8 @@ class SimulationTimerActor extends Actor {
 
 			ActorBasedSimulation.timeBus.publish(MsgEnvelope("time.step", new Step(currentTime)))
 
-		case TimerRequest(actorRef, time) =>
-			scheduledTimes.update(actorRef, time)
+		case TimerRequest(time) =>
+			scheduledTimes.update(sender(), time)
 			if (scheduledTimes.count(_._2 == currentTime) == 0) {
 				advance()
 			}
