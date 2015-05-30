@@ -29,7 +29,7 @@ class ActorBasedSimulation {
 	val vehicle = actorSystem.actorOf(Props(new VehicleActor(timer)), "vehicle")
 	ActorBasedSimulation.timeBus.subscribe(vehicle, "time.step")
 
-	val driver = actorSystem.actorOf(Props(new DriverActor(timer)), "driver")
+	val driver = actorSystem.actorOf(Props(new DriverActor(timer, vehicle)), "driver")
 	ActorBasedSimulation.timeBus.subscribe(driver, "time.step")
 
 	timer ! StartSimulation(List(vehicle, driver))

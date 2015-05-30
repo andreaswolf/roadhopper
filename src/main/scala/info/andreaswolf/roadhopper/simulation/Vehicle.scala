@@ -21,21 +21,49 @@ class Vehicle(val maxAcceleration: Float, val maxSpeed: Double) {
 	}
 }
 
+case class Accelerate(value: Double)
+case class Decelerate(value: Double)
+case class SetAcceleration(value: Double)
+case class RequestVehicleStatus()
+case class VehicleStatus(acceleration: Double, speed: Double, travelledDistance: Double)
+
 class VehicleActor(val timer: ActorRef) extends Actor {
 	var steps = 0
 
+	val maxSpeed = 50.0
+	var acceleration = 0.0
+	var speed = 0.0
+
+	var lastUpdateTime = 0.0
+
+	var travelledDistance = 0.0
+
 	override def receive: Receive = {
 		case Start() =>
-			println("Vehicle starting")
 			timer ! ScheduleRequest(10)
 
 		case Step(time) =>
-			println("Vehicle reached " + time)
-			steps += 1
-			if (steps < 5) {
-				timer ! ScheduleRequest(time + 10)
-			} else {
-				timer ! Pass()
+			speed += acceleration * (time - lastUpdateTime) / 1000
+			if (speed > maxSpeed) {
+				acceleration = 0.0
+				speed = maxSpeed
 			}
+			travelledDistance += speed * (time - lastUpdateTime) / 1000
+
+			lastUpdateTime = time
+
+			timer ! ScheduleRequest(time + 10)
+
+		case Accelerate(value) =>
+			acceleration += value
+
+		case Decelerate(value) =>
+			acceleration -= value
+
+		case SetAcceleration(value) =>
+			acceleration = value
+
+		case RequestVehicleStatus() =>
+			sender() ! VehicleStatus(acceleration, speed, travelledDistance)
 	}
 }

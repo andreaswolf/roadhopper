@@ -1,11 +1,12 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{PoisonPill, Actor, ActorRef}
 
 import scala.collection.mutable
 
 case class Step(time: Int)
 case class StartSimulation(actors: List[ActorRef])
+case class StopSimulation()
 case class Start()
 case class ScheduleRequest(time: Int)
 case class Pass()
@@ -16,21 +17,37 @@ class SimulationTimerActor extends Actor {
 	var started = false
 
 	var calledActors = List[ActorRef]()
+	var registeredActors = List[ActorRef]()
 
 	val scheduledTimes = scala.collection.mutable.HashMap.empty[ActorRef, Int]
 
 	override def receive: Receive = {
+		/**
+		 * Starts the simulation. The list of actors is required because the timer needs to know for which components to
+		 * wait
+		 */
 		case StartSimulation(actors) =>
-			println("Started simulation")
+			//println("Started simulation")
 
 			started = true
 			calledActors = actors
+			registeredActors = actors
 			actors.foreach((actor) => {
 				actor ! Start()
 			})
 
+		case StopSimulation() =>
+			if (started) {
+				//println("Stopping simulation")
+				started = false
+				registeredActors.foreach((actor) => {
+					actor ! PoisonPill
+				})
+			}
+
 		case ScheduleRequest(time) =>
-			println(calledActors.size + " actors still called; scheduling " + sender().path + " for " + time)
+			require(currentTime < time, "Can only schedule for the future")
+			//println(calledActors.size + " actors still called; scheduling " + sender().path + " for " + time)
 			scheduledTimes.update(sender(), time)
 			unscheduleActor(sender())
 
@@ -54,8 +71,6 @@ class SimulationTimerActor extends Actor {
 		// find next scheduled point in time
 		currentTime = scheduledTimes.values.min
 
-		println("Advancing to time " + currentTime)
-
 		// TODO this works for now, but we should publish messages to the bus instead and unset the scheduled time
 		// The scheduledTimes map should also be time => List[ActorRef] instead
 		val scheduledActors: mutable.HashMap[ActorRef, Int] = scheduledTimes.filter(_._2 == currentTime)
@@ -66,13 +81,13 @@ class SimulationTimerActor extends Actor {
 		calledActors = scheduledActors.keys.toList
 		scheduledActors.foreach(t => {
 			val (actor: ActorRef, _) = t
-			println("Calling actor " + actor.path)
+			//println("Calling actor " + actor.path)
 			// make sure this actor is not scheduled unless they schedule themselves again
 			scheduledTimes.remove(actor)
-			println(scheduledTimes.size + " actors scheduled")
+			//println(scheduledTimes.size + " actors scheduled")
 			actor ! Step(currentTime)
 		})
-		println(calledActors.size + " actors called")
+		//println(calledActors.size + " actors called")
 	}
 
 }
