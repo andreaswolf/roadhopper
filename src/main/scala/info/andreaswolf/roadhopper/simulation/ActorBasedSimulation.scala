@@ -32,7 +32,10 @@ class ActorBasedSimulation {
 	val driver = actorSystem.actorOf(Props(new DriverActor(timer, vehicle)), "driver")
 	ActorBasedSimulation.timeBus.subscribe(driver, "time.step")
 
-	timer ! StartSimulation(List(vehicle, driver))
+	val monitor = actorSystem.actorOf(Props(new VehicleStatusMonitor(timer, 2000, vehicle)))
+	ActorBasedSimulation.timeBus.subscribe(monitor, "time.step")
+
+	timer ! StartSimulation(List(vehicle, driver, monitor))
 
 	def shutdown() = actorSystem.shutdown()
 }
