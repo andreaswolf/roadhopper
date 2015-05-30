@@ -25,11 +25,17 @@ class VehicleActor(val timer: ActorRef) extends Actor {
 	var steps = 0
 
 	override def receive: Receive = {
+		case Start() =>
+			println("Vehicle starting")
+			timer ! ScheduleRequest(10)
+
 		case Step(time) =>
-			println("Reached step " + time)
+			println("Vehicle reached " + time)
 			steps += 1
 			if (steps < 5) {
-				timer ! new ScheduleRequest(time + 10)
+				timer ! ScheduleRequest(time + 10)
+			} else {
+				timer ! Pass()
 			}
 	}
 }
