@@ -4,9 +4,12 @@ import com.graphhopper.GHRequest;
 import com.graphhopper.GHResponse;
 import com.graphhopper.http.GraphHopperServlet;
 import com.graphhopper.routing.util.FlagEncoder;
+import com.graphhopper.storage.NodeAccess;
+import com.graphhopper.storage.extensions.RoadSignEncoder;
 import com.graphhopper.util.PointList;
 import com.graphhopper.util.StopWatch;
 import com.graphhopper.util.shapes.GHPoint;
+import gnu.trove.procedure.TIntProcedure;
 import info.andreaswolf.roadhopper.RoadHopper;
 import info.andreaswolf.roadhopper.route.Route;
 import org.json.JSONObject;
@@ -16,6 +19,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -64,6 +69,7 @@ public class RoadHopperServlet extends GraphHopperServlet
 
 		StopWatch sw = new StopWatch().start();
 		GHResponse ghRsp;
+		Route route = null;
 		if (!hopper.getEncodingManager().supports(vehicleStr))
 		{
 			ghRsp = new GHResponse().addError(new IllegalArgumentException("Vehicle not supported: " + vehicleStr));
@@ -86,6 +92,7 @@ public class RoadHopperServlet extends GraphHopperServlet
 					put("wayPointMaxDistance", minPathPrecision);
 
 			ghRsp = hopper.route(request);
+			route = hopper.createRoute(request);
 		}
 
 		float took = sw.stop().getSeconds();
@@ -107,6 +114,12 @@ public class RoadHopperServlet extends GraphHopperServlet
 		{
 			Map<String, Object> map = createJson(ghRsp,
 					calcPoints, pointsEncoded, enableElevation, enableInstructions);
+
+			if (route != null)
+			{
+				// TODO enrich response with more information;
+				new TrafficSignEnricher().enrich(map, route);
+			}
 
 			Object infoMap = map.get("info");
 			if (infoMap != null)
@@ -130,5 +143,45 @@ public class RoadHopperServlet extends GraphHopperServlet
 		jsonPoints.put("foo", "bar");
 
 		return jsonPoints;
+	}
+
+	protected class TrafficSignEnricher {
+		public void enrich(final Map<String, Object> responseContents, Route route) {
+			final NodeAccess nodeAccess = hopper.getGraph().getNodeAccess();
+			final List<PointInfo> towerNodeInfo = new ArrayList<PointInfo>(10);
+			final RoadSignEncoder signEncoder = new RoadSignEncoder(hopper.getGraph());
+
+			route.getTowerNodeIds().forEach(new TIntProcedure()
+			{
+				public boolean execute(int value)
+				{
+					if (signEncoder.hasTrafficLight(value)) {
+						towerNodeInfo.add(new PointInfo(nodeAccess.getLat(value), nodeAccess.getLon(value), "trafficLight"));
+					}
+					return true;
+				}
+			});
+
+			responseContents.put("towerNodes", towerNodeInfo);
+		}
+	}
+
+	/**
+	 *
+	 */
+	protected class PointInfo extends GHPoint {
+
+		protected String info;
+
+		public PointInfo(double lat, double lon, String info)
+		{
+			super(lat, lon);
+			this.info = info;
+		}
+
+		public String getInfo()
+		{
+			return info;
+		}
 	}
 }

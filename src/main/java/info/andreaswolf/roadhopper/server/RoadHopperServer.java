@@ -18,6 +18,8 @@ import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.resource.ResourceCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +63,12 @@ public class RoadHopperServer
 				{
 						"index.html"
 				});
-		resHandler.setResourceBase(args.get("jetty.resourcebase", "./src/main/webapp"));
+		// setup multiple resources, see <https://stackoverflow.com/a/2450243/3987705>
+		resHandler.setBaseResource(new ResourceCollection(new String[]{
+				// make sure our resources take precedence
+				"./roadhopper/src/main/webapp/",
+				args.get("jetty.resourcebase", "./src/main/webapp")
+		}));
 
 		server = new Server();
 		// getSessionHandler and getSecurityHandler should always return null
