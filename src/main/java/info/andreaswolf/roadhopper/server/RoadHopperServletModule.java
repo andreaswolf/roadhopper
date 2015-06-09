@@ -8,7 +8,10 @@ public class RoadHopperServletModule extends com.google.inject.servlet.ServletMo
 	@Override
 	protected void configureServlets()
 	{
-		serve("/road*").with(RoadProfileServlet.class);
+		serve("/road").with(RoadProfileServlet.class);
 		bind(RoadProfileServlet.class).in(Singleton.class);
+
+		serve("/roadhopper/route").with(RoadHopperServlet.class);
+		bind(RoadHopperServlet.class).in(Singleton.class);
 	}
 }
