@@ -129,6 +129,7 @@ public class RoadHopperServlet extends GraphHopperServlet
 						HashMap<String, Object> edgeInfo = new HashMap<String, Object>();
 						edgeInfo.put("type", "LineString");
 						edgeInfo.put("coordinates", encoder.encodeEdge(edge));
+						edgeInfo.put("id", edge.getEdge());
 
 						encodedEdges.add(edgeInfo);
 					}
