@@ -155,9 +155,11 @@ public class RoadHopperServlet extends GraphHopperServlet
 			{
 				public boolean execute(int value)
 				{
+					String iconType = "";
 					if (signEncoder.hasTrafficLight(value)) {
-						towerNodeInfo.add(new PointInfo(nodeAccess.getLat(value), nodeAccess.getLon(value), "trafficLight"));
+						iconType = "trafficLight";
 					}
+					towerNodeInfo.add(new PointInfo(nodeAccess.getLat(value), nodeAccess.getLon(value), iconType));
 					return true;
 				}
 			});
