@@ -14,3 +14,7 @@ drawRouteCallback = function (jsonData) {
 	}
 
 };
+
+GHRequest.prototype.createURL = function () {
+    return this.createPath(this.host + "/roadhopper/route?" + this.createPointParams(false) + "&type=" + this.dataType + "&key=" + this.key);
+};
