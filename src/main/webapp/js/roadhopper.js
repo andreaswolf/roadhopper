@@ -1,3 +1,12 @@
+var initMapOrig = initMap;
+var roadSignLayer;
+initMap = function(selectLayer) {
+	initMapOrig(selectLayer);
+
+	roadSignLayer = L.geoJson().addTo(map);
+	layerControl.addOverlay(roadSignLayer, "Road Signs");
+};
+
 drawRouteCallback = function (jsonData) {
 	var node;
 	var trafficLightIcon = L.icon({
@@ -11,6 +20,7 @@ drawRouteCallback = function (jsonData) {
 
 	// remove existing information
 	routingLayer.clearLayers();
+	roadSignLayer.clearLayers();
 	// re-add the start/end flags we removed earlier
 	flagAll();
 
@@ -30,16 +40,12 @@ drawRouteCallback = function (jsonData) {
 				"weight": 5,
 				"opacity": 0.9
 			};
-		},
-		onEachFeature: function (feature, layer) {
-			console.debug(feature);
 		}
 	}).addTo(routingLayer);
 
 	for (var i = 0; i < jsonData["towerNodes"].length; ++i) {
 		node = jsonData["towerNodes"][i];
-		console.debug(node);
-		L.marker([node['lat'], node['lon']], {icon: getIconForTower(node)}).addTo(routingLayer);
+		L.marker([node['lat'], node['lon']], {icon: getIconForTower(node)}).addTo(roadSignLayer);
 	}
 
 };
