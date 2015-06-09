@@ -19,6 +19,10 @@ public class Route
 		this.paths = paths;
 	}
 
+	public List<Path> getPaths()
+	{
+		return paths;
+	}
 
 	public TIntList getTowerNodeIds() {
 		TIntList nodes = new TIntArrayList();
