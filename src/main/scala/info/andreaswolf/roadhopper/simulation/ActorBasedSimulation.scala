@@ -1,24 +1,30 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor.{ActorRef, Props, Actor, ActorSystem}
-import akka.event.LookupClassification
-import akka.event.EventBus
-
-import scala.collection.mutable
+import com.graphhopper.util.CmdArgs
+import com.graphhopper.util.shapes.GHPoint
+import info.andreaswolf.roadhopper.RoadHopper
+import info.andreaswolf.roadhopper.road.{Route, RouteFactory}
 
 
 object ActorBasedSimulation extends App {
 	var timeBus = new TimedEventBus
 
 	override def main(args: Array[String]): Unit = {
-		val simulation: ActorBasedSimulation = new ActorBasedSimulation()
+		val cmdArgs = CmdArgs.read(args)
+		val roadHopperInstance = new RoadHopper
+		roadHopperInstance.forServer().init(cmdArgs)
+		roadHopperInstance.importOrLoad()
 
+		val routeFactory = new RouteFactory(roadHopperInstance)
+		val route = routeFactory.getRoute(List(new GHPoint(49.010796, 8.375444), new GHPoint(49.01271, 8.418016)))
+
+		val simulation: ActorBasedSimulation = new ActorBasedSimulation(route)
 		simulation.timer ! new Start
 	}
 }
 
-
-class ActorBasedSimulation {
+class ActorBasedSimulation(val route: Route) {
 	val actorSystem = ActorSystem.create("roadhopper")
 
 	ActorBasedSimulation.timeBus = new TimedEventBus

@@ -44,4 +44,6 @@ class RoadSegment(val length: Double, var orientation: Double = 0.0) extends Rou
 	def calculateNecessaryTurn(nextSegment: RoadSegment): Double = {
 		(nextSegment.orientation - orientation) % (Math.PI * 2)
 	}
+
+	override def toString = f"RoadSegment($length%.2f, $orientation%.2f°)"
 }
