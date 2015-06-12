@@ -32,17 +32,30 @@ object RoadSegment {
 
 /**
  *
- * @param orientation The orientation in polar coordinates (-pi..+pi, 0 = east)
+ * @param _orientation The orientation in polar coordinates ([-pi..+pi), 0 = east)
  */
-class RoadSegment(val length: Double, var orientation: Double = 0.0) extends RoutePart {
+class RoadSegment(val length: Double, private val _orientation: Double = 0.0) extends RoutePart {
+	val orientation = _orientation match {
+			case x if x < -Math.PI => x + (Math.PI * 2)
+			// ensure that the interval is open at the right end
+			case x if x % (Math.PI * 2) == Math.PI => -Math.PI
+			case x if x >= Math.PI * 2 => (x - Math.PI * 2) % (Math.PI * 2)
+			case x if x >= Math.PI => x - (Math.PI * 2)
+			case x => x
+		}
 
 	/**
-	 * Returns the angle necessary to get from this segment to the given segment
+	 * Returns the angle necessary to get from this segment to the given segment.
 	 *
-	 * TODO check for u-turns—must be right or left depending on the country
+	 * The return value is confined to an interval [-pi..pi). The resulting orientation is always absolute (i.e. in
+	 * [-pi..pi)) and not relative to the start of the journey.
 	 */
 	def calculateNecessaryTurn(nextSegment: RoadSegment): Double = {
-		nextSegment.orientation - orientation
+		nextSegment.orientation - orientation match {
+			case x if x >= Math.PI * 2 => x % Math.PI
+			case x if x > Math.PI => x - Math.PI * 2
+			case x => x
+		}
 	}
 
 	override def toString = f"RoadSegment($length%.2f, $orientation%.2f°)"

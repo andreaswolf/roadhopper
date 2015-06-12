@@ -6,26 +6,22 @@ import org.scalatest.prop.TableDrivenPropertyChecks._
 
 class RoadSegmentTest extends FunSuite {
 
-	test("Orientation is corrected if above pi") {
-		var subject = new RoadSegment(200.0f, Math.PI * 2)
-		Assert.assertEquals(0.0, subject.orientation)
-
-		subject = new RoadSegment(200.0f, Math.PI * 3)
-		Assert.assertEquals(Math.PI, subject.orientation)
-
-		subject = new RoadSegment(200.0f, Math.PI * 2.5)
-		Assert.assertEquals(Math.PI / 2, subject.orientation)
-	}
-
-	test("Orientation is corrected if below -pi") {
-		var subject = new RoadSegment(200.0f, -Math.PI * 2)
-		Assert.assertEquals(-0.0, subject.orientation)
-
-		subject = new RoadSegment(200.0f, -Math.PI * 2.5)
-		Assert.assertEquals(-Math.PI / 2, subject.orientation)
-
-		subject = new RoadSegment(200.0f, -Math.PI * 3)
-		Assert.assertEquals(Math.PI, subject.orientation)
+	val orientationTest = Table(
+		("initialOrientation", "expectedOrientation"),
+		(Math.PI * 2, 0.0),
+		(Math.PI * 3, -Math.PI),
+		(Math.PI * 2.5, Math.PI / 2),
+		(Math.PI * 1.5, -Math.PI / 2),
+		(-Math.PI * 2, 0.0),
+		(-Math.PI * 3, -Math.PI),
+		(-Math.PI * 2.5, -Math.PI / 2),
+		(-Math.PI * 1.5, Math.PI / 2)
+	)
+	forAll (orientationTest) { (initialOrientation: Double, expectedOrientation: Double) =>
+		test("Orientation is corrected from " + initialOrientation + " to " + expectedOrientation) {
+			val subject = new RoadSegment(200.0f, initialOrientation)
+			Assert.assertEquals(expectedOrientation, subject.orientation)
+		}
 	}
 
 	test("Necessary turn is zero for same direction") {
@@ -37,10 +33,14 @@ class RoadSegmentTest extends FunSuite {
 
 	val turns = Table(
 		("fromOrientation", "toOrientation", "expectedTurn"),
-		// right turns:
+		// right turns (turn < 0):
+		// 0° -> -90°
 		(0.0, -Math.PI / 2, -Math.PI / 2),
-		(Math.PI, -3 * Math.PI / 2, -Math.PI / 2),
-		(Math.PI, 3 * Math.PI / 4, -Math.PI / 4),
+		// 180° -> -90°
+		(-Math.PI, -3 * Math.PI / 2, -Math.PI / 2),
+		(-Math.PI, Math.PI / 2, -Math.PI / 2),
+		// 45° -> 0°
+		(Math.PI / 4, 0.0, -Math.PI / 4),
 		// left turns:
 		(0.0, Math.PI / 2, Math.PI / 2),
 		(Math.PI / 4, Math.PI / 2, Math.PI / 4),
