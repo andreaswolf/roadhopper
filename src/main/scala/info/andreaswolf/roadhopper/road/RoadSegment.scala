@@ -42,7 +42,7 @@ class RoadSegment(val length: Double, var orientation: Double = 0.0) extends Rou
 	 * TODO check for u-turns—must be right or left depending on the country
 	 */
 	def calculateNecessaryTurn(nextSegment: RoadSegment): Double = {
-		(nextSegment.orientation - orientation) % (Math.PI * 2)
+		nextSegment.orientation - orientation
 	}
 
 	override def toString = f"RoadSegment($length%.2f, $orientation%.2f°)"
