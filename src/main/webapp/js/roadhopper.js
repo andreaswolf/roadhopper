@@ -8,7 +8,6 @@ initMap = function(selectLayer) {
 };
 
 drawRouteCallback = function (jsonData) {
-	var node;
 	var trafficLightIcon = L.icon({
 		iconUrl: './img/traffic_light.png',
 		iconAnchor: [12, 12]
@@ -32,6 +31,7 @@ drawRouteCallback = function (jsonData) {
 		}
 	}
 
+	var i = 0;
 	L.geoJson(jsonData["points"], {
 		filter: function(feature) {
 			return feature.type == 'LineString';
@@ -43,15 +43,31 @@ drawRouteCallback = function (jsonData) {
 				"weight": 5,
 				"opacity": 0.9
 			};
+		},
+		onEachFeature: function(feature, layer) {
+			if (feature.length) {
+				layer.bindPopup(i + " - Länge: " + feature.length.toFixed(0) + " - "
+					+ ((feature.orientation * 180/Math.PI + 360) % 360).toFixed(1) + "°"
+				);
+			}
+			++i;
 		}
 	}).addTo(routingLayer);
 
+	var t = 0;
 	L.geoJson(jsonData["points"], {
 		filter: function (feature) {
 			return feature.type == "Point";
 		},
 		pointToLayer: function(feature, latlng) {
 			return L.marker(latlng, {icon: getIconForTower(feature)});
+		},
+		onEachFeature: function(feature, layer) {
+			console.debug(feature);
+			if (feature.id) {
+				layer.bindPopup(i + " - " + t + " - Node ID: " + feature.id);
+			}
+			++i; ++t;
 		}
 	}).addTo(roadSignLayer);
 
