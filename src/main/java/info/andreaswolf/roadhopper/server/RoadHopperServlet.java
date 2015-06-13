@@ -129,13 +129,9 @@ public class RoadHopperServlet extends GraphHopperServlet
 				{
 					HashMap<String, Object> partInfo = new HashMap<String, Object>();
 					if (part instanceof RoadSegment) {
-						partInfo.put("type", "LineString");
-						partInfo.put("coordinates", encoder.encodeRoadSegment(((RoadSegment) part), false));
-						//partInfo.put("id", edge.getEdge());
+						encoder.encodeRoadSegment(partInfo, ((RoadSegment) part), false);
 					} else if (part instanceof TrafficLight) {
-						partInfo.put("type", "Point");
-						partInfo.put("info", "TrafficLight");
-						partInfo.put("coordinates", ((TrafficLight) part).coordinates().toGeoJson());
+						encoder.encodeTrafficLight(partInfo, ((TrafficLight) part));
 					}
 
 					pointList.add(partInfo);
@@ -181,28 +177,25 @@ public class RoadHopperServlet extends GraphHopperServlet
 			return points.toGeoJson();
 		}
 
-		public Object encodeRoadSegment(RoadSegment segment, Boolean includeElevation)
+		public void encodeRoadSegment(HashMap<String, Object> partInfo, RoadSegment segment, Boolean includeElevation)
 		{
 			ArrayList<Double[]> points = new ArrayList<Double[]>(2);
+
 			// NOTE: GeoJSON uses lon/lat coordinates instead of lat/lon!
-			if (includeElevation)
-			{
-				points.add(new Double[]{
-						segment.start().getLon(), segment.start().getLat(), segment.start().getEle()
-				});
-				points.add(new Double[]{
-						segment.end().getLon(), segment.end().getLat(), segment.end().getEle()
-				});
-			} else
-			{
-				points.add(new Double[]{
-						segment.start().getLon(), segment.start().getLat()
-				});
-				points.add(new Double[]{
-						segment.end().getLon(), segment.end().getLat()
-				});
-			}
-			return points;
+			points.add(segment.start().toGeoJson());
+			points.add(segment.end().toGeoJson());
+
+			partInfo.put("type", "LineString");
+			partInfo.put("coordinates", points);
+			partInfo.put("length", segment.length());
+			partInfo.put("orientation", segment.orientation());
+		}
+
+		public void encodeTrafficLight(HashMap<String, Object> partInfo, TrafficLight trafficLight) {
+			partInfo.put("type", "Point");
+			partInfo.put("info", "TrafficLight");
+			partInfo.put("id", trafficLight.id());
+			partInfo.put("coordinates", trafficLight.coordinates().toGeoJson());
 		}
 	}
 
