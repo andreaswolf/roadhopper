@@ -13,9 +13,7 @@ import com.graphhopper.util.StopWatch;
 import com.graphhopper.util.shapes.GHPoint;
 import gnu.trove.procedure.TIntProcedure;
 import info.andreaswolf.roadhopper.RoadHopper;
-import info.andreaswolf.roadhopper.road.RoadSegment;
-import info.andreaswolf.roadhopper.road.RouteFactory;
-import info.andreaswolf.roadhopper.road.Route;
+import info.andreaswolf.roadhopper.road.*;
 import org.json.JSONObject;
 import scala.collection.JavaConversions;
 import scala.collection.JavaConverters;
@@ -126,17 +124,23 @@ public class RoadHopperServlet extends GraphHopperServlet
 			if (hopperRoute != null)
 			{
 				GeoJsonEncoder encoder = new GeoJsonEncoder();
-				List<Object> encodedEdges = new ArrayList<Object>(10);
-				for (RoadSegment segment : JavaConversions.asJavaCollection(hopperRoute.getRoadSegments()))
+				List<Object> pointList = new ArrayList<Object>(10);
+				for (RoutePart part : JavaConversions.asJavaCollection(hopperRoute.parts()))
 				{
-					HashMap<String, Object> segmentInfo = new HashMap<String, Object>();
-					segmentInfo.put("type", "LineString");
-					segmentInfo.put("coordinates", encoder.encodeRoadSegment(segment, false));
-					//segmentInfo.put("id", edge.getEdge());
+					HashMap<String, Object> partInfo = new HashMap<String, Object>();
+					if (part instanceof RoadSegment) {
+						partInfo.put("type", "LineString");
+						partInfo.put("coordinates", encoder.encodeRoadSegment(((RoadSegment) part), false));
+						//partInfo.put("id", edge.getEdge());
+					} else if (part instanceof TrafficLight) {
+						partInfo.put("type", "Point");
+						partInfo.put("info", "TrafficLight");
+						partInfo.put("coordinates", ((TrafficLight) part).coordinates().toGeoJson());
+					}
 
-					encodedEdges.add(segmentInfo);
+					pointList.add(partInfo);
 				}
-				map.put("points", encodedEdges);
+				map.put("points", pointList);
 
 				// TODO enrich response with more information;
 				//new TrafficSignEnricher().enrich(map, route);

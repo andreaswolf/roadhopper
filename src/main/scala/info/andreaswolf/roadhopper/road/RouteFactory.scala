@@ -1,6 +1,8 @@
 package info.andreaswolf.roadhopper.road
 
 import com.graphhopper.routing.Path
+import com.graphhopper.storage.NodeAccess
+import com.graphhopper.storage.extensions.RoadSignEncoder
 import com.graphhopper.util.shapes.{GHPoint, GHPoint3D}
 import info.andreaswolf.roadhopper.RoadHopper
 import info.andreaswolf.roadhopper.server.RouteCalculator
@@ -25,10 +27,18 @@ class RouteFactory(val hopper: RoadHopper) {
 		val segments: ListBuffer[RoutePart] = new ListBuffer[RoutePart]
 		var lastPoint: Option[GHPoint3D] = None
 
+		val signEncoder: RoadSignEncoder = new RoadSignEncoder(hopper.getGraph)
+		val nodeAccess: NodeAccess = hopper.getGraph.getNodeAccess
+
 		for (i <- paths.indices) {
 			// NOTE the first and last edges might be incomplete, as we enter the road through it! -> conclusion: do not use
 			// the edges for any calculations, but instead rely on the points
 			for (edge <- paths.get(i).calcEdges()) {
+				if (signEncoder.hasTrafficLight(edge.getBaseNode)) {
+					segments append new TrafficLight(edge.getBaseNode,
+						new GHPoint3D(nodeAccess.getLat(edge.getBaseNode), nodeAccess.getLon(edge.getBaseNode), 0.0)
+					)
+				}
 				// TODO move creating the road segments for one edge to a separate method
 				for (point <- edge.fetchWayGeometry(3)) {
 					breakable {

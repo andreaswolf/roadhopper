@@ -25,7 +25,7 @@ drawRouteCallback = function (jsonData) {
 	flagAll();
 
 	function getIconForTower(node) {
-		if (node["info"] == "trafficLight") {
+		if (node["info"] == "TrafficLight") {
 			return trafficLightIcon;
 		} else {
 			return towerNodeIcon;
@@ -33,6 +33,9 @@ drawRouteCallback = function (jsonData) {
 	}
 
 	L.geoJson(jsonData["points"], {
+		filter: function(feature) {
+			return feature.type == 'LineString';
+		},
 		style: function (feature) {
 			return {
 				color: '#'+ (function lol(m,s,c){return s[m.floor(m.random() * s.length)] +
@@ -43,10 +46,14 @@ drawRouteCallback = function (jsonData) {
 		}
 	}).addTo(routingLayer);
 
-	for (var i = 0; i < jsonData["towerNodes"].length; ++i) {
-		node = jsonData["towerNodes"][i];
-		L.marker([node['lat'], node['lon']], {icon: getIconForTower(node)}).addTo(roadSignLayer);
-	}
+	L.geoJson(jsonData["points"], {
+		filter: function (feature) {
+			return feature.type == "Point";
+		},
+		pointToLayer: function(feature, latlng) {
+			return L.marker(latlng, {icon: getIconForTower(feature)});
+		}
+	}).addTo(roadSignLayer);
 
 };
 
