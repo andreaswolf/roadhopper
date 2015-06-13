@@ -7,16 +7,18 @@ import com.graphhopper.routing.Path;
 import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.storage.NodeAccess;
 import com.graphhopper.storage.extensions.RoadSignEncoder;
-import com.graphhopper.util.EdgeIterator;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.PointList;
 import com.graphhopper.util.StopWatch;
 import com.graphhopper.util.shapes.GHPoint;
-import com.graphhopper.util.shapes.GHPoint3D;
 import gnu.trove.procedure.TIntProcedure;
 import info.andreaswolf.roadhopper.RoadHopper;
-import info.andreaswolf.roadhopper.route.Route;
+import info.andreaswolf.roadhopper.road.RoadSegment;
+import info.andreaswolf.roadhopper.road.RouteFactory;
+import info.andreaswolf.roadhopper.road.Route;
 import org.json.JSONObject;
+import scala.collection.JavaConversions;
+import scala.collection.JavaConverters;
 
 import javax.inject.Inject;
 import javax.servlet.ServletException;
@@ -73,7 +75,7 @@ public class RoadHopperServlet extends GraphHopperServlet
 
 		StopWatch sw = new StopWatch().start();
 		GHResponse ghRsp;
-		Route route = null;
+		Route hopperRoute = null;
 		if (!hopper.getEncodingManager().supports(vehicleStr))
 		{
 			ghRsp = new GHResponse().addError(new IllegalArgumentException("Vehicle not supported: " + vehicleStr));
@@ -96,7 +98,9 @@ public class RoadHopperServlet extends GraphHopperServlet
 					put("wayPointMaxDistance", minPathPrecision);
 
 			ghRsp = hopper.route(request);
-			route = hopper.createRoute(request);
+			info.andreaswolf.roadhopper.route.Route route = hopper.createRoute(request);
+			RouteFactory factory = new RouteFactory(hopper);
+			hopperRoute = factory.simplify(factory.createRouteFromPaths(JavaConversions.asScalaBuffer(route.getPaths()).toList()).parts(), 2.0);
 		}
 
 		float took = sw.stop().getSeconds();
@@ -119,25 +123,23 @@ public class RoadHopperServlet extends GraphHopperServlet
 			Map<String, Object> map = createJson(ghRsp,
 					calcPoints, pointsEncoded, enableElevation, enableInstructions);
 
-			if (route != null)
+			if (hopperRoute != null)
 			{
 				GeoJsonEncoder encoder = new GeoJsonEncoder();
 				List<Object> encodedEdges = new ArrayList<Object>(10);
-				for (Path path : route.getPaths())
+				for (RoadSegment segment : JavaConversions.asJavaCollection(hopperRoute.getRoadSegments()))
 				{
-					for (EdgeIteratorState edge : path.calcEdges()) {
-						HashMap<String, Object> edgeInfo = new HashMap<String, Object>();
-						edgeInfo.put("type", "LineString");
-						edgeInfo.put("coordinates", encoder.encodeEdge(edge));
-						edgeInfo.put("id", edge.getEdge());
+					HashMap<String, Object> segmentInfo = new HashMap<String, Object>();
+					segmentInfo.put("type", "LineString");
+					segmentInfo.put("coordinates", encoder.encodeRoadSegment(segment, false));
+					//segmentInfo.put("id", edge.getEdge());
 
-						encodedEdges.add(edgeInfo);
-					}
+					encodedEdges.add(segmentInfo);
 				}
 				map.put("points", encodedEdges);
 
 				// TODO enrich response with more information;
-				new TrafficSignEnricher().enrich(map, route);
+				//new TrafficSignEnricher().enrich(map, route);
 			}
 
 			Object infoMap = map.get("info");
@@ -174,11 +176,35 @@ public class RoadHopperServlet extends GraphHopperServlet
 			// TODO use 3D parameter
 			return points.toGeoJson();
 		}
+
+		public Object encodeRoadSegment(RoadSegment segment, Boolean includeElevation)
+		{
+			ArrayList<Double[]> points = new ArrayList<Double[]>(2);
+			// NOTE: GeoJSON uses lon/lat coordinates instead of lat/lon!
+			if (includeElevation)
+			{
+				points.add(new Double[]{
+						segment.start().getLon(), segment.start().getLat(), segment.start().getEle()
+				});
+				points.add(new Double[]{
+						segment.end().getLon(), segment.end().getLat(), segment.end().getEle()
+				});
+			} else
+			{
+				points.add(new Double[]{
+						segment.start().getLon(), segment.start().getLat()
+				});
+				points.add(new Double[]{
+						segment.end().getLon(), segment.end().getLat()
+				});
+			}
+			return points;
+		}
 	}
 
 	protected class TrafficSignEnricher
 	{
-		public void enrich(final Map<String, Object> responseContents, Route route)
+		public void enrich(final Map<String, Object> responseContents, info.andreaswolf.roadhopper.route.Route route)
 		{
 			final NodeAccess nodeAccess = hopper.getGraph().getNodeAccess();
 			final List<PointInfo> towerNodeInfo = new ArrayList<PointInfo>(10);
