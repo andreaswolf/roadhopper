@@ -1,5 +1,7 @@
 package info.andreaswolf.roadhopper.road
 
+import com.graphhopper.util.shapes.GHPoint3D
+
 object RoadSegment {
 
 	/**
@@ -25,16 +27,22 @@ object RoadSegment {
 		val orientation = Math.atan2(Math.sin(lon2 - lon1) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) -
 			Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1))
 
-		new RoadSegment(length, orientation)
+		new RoadSegment(new GHPoint3D(lat1, lon1, 0.0), new GHPoint3D(lat2, lon2, 0.0), length, orientation)
+	}
+
+	def fromPoints(start: GHPoint3D, end: GHPoint3D): RoadSegment = {
+		fromCoordinates(start.lat, start.lon, end.lat, end.lon)
 	}
 
 }
 
 /**
  *
+ * TODO refactor constructor arguments to only include the necessary parts
  * @param _orientation The orientation in polar coordinates ([-pi..+pi), 0 = east)
  */
-class RoadSegment(val length: Double, private val _orientation: Double = 0.0) extends RoutePart {
+class RoadSegment(val start: GHPoint3D, val end: GHPoint3D,
+                  val length: Double, private val _orientation: Double = 0.0) extends RoutePart {
 	val orientation = _orientation match {
 			case x if x < -Math.PI => x + (Math.PI * 2)
 			// ensure that the interval is open at the right end

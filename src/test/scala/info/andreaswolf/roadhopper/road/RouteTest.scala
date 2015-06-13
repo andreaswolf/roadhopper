@@ -1,21 +1,29 @@
 package info.andreaswolf.roadhopper.road
 
+import com.graphhopper.util.shapes.GHPoint3D
 import junit.framework.Assert
 
 class RouteTest extends org.scalatest.FunSuite {
 
 	test("An empty route should have length 0") {
 		val list = List()
-		Assert.assertEquals(0.0f, new Route(list).length)
+		Assert.assertEquals(0.0, new Route(list).length)
 	}
 
 	test("A route with two segments should have the length of both segments") {
-		val list = List(new RoadSegment(100.0f), new RoadSegment(50.0f));
-		Assert.assertEquals(150.0f, new Route(list).length)
+		val list = List(
+			new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 100.0f),
+			new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 50.0f)
+		)
+		Assert.assertEquals(150.0, new Route(list).length)
 	}
 
 	test("A segment in the route can be retrieved by position") {
-		val list = List(new RoadSegment(100.0f), new RoadSegment(50.0f), new RoadSegment(25.0f))
+		val list = List(
+			new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 100.0f),
+			new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 50.0f),
+			new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 25.0f)
+		)
 		val route = new Route(list)
 
 		Assert.assertTrue(route.getSegmentForPosition(50.0) == list.head)
@@ -28,7 +36,11 @@ class RouteTest extends org.scalatest.FunSuite {
 	}
 
 	test("Accessing a route segment out of the bounds leads to an exception") {
-		val list = List(new RoadSegment(100.0f), new RoadSegment(50.0f), new RoadSegment(25.0f))
+		val list = List(
+			new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 100.0f),
+			new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 50.0f),
+			new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 25.0f)
+		)
 		val route = new Route(list)
 
 		intercept[IllegalArgumentException] {
@@ -37,7 +49,7 @@ class RouteTest extends org.scalatest.FunSuite {
 	}
 
 	test("Coordinates for route points can be fetched") {
-		val segments = List(new RoadSegment(100.0f))
+		val segments = List(new RoadSegment(new GHPoint3D(0.0,0.0,0.0), new GHPoint3D(0.1, 0.1, 0.0), 100.0f))
 		val route = new Route(segments)
 
 		Assert.assertEquals(List(new Tuple2(0.0, 0.0), new Tuple2(100.0f, 0.0)), route.roadSegmentCoordinates)

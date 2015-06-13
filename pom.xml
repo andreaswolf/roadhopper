@@ -113,5 +113,12 @@
 		  <version>2.2.4</version>
 		  <scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.scalamock</groupId>
+			<artifactId>scalamock-scalatest-support_2.11</artifactId>
+			<version>3.2</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 </project>

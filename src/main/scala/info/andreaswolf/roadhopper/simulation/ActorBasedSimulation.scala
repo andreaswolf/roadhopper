@@ -17,7 +17,8 @@ object ActorBasedSimulation extends App {
 		roadHopperInstance.importOrLoad()
 
 		val routeFactory = new RouteFactory(roadHopperInstance)
-		val route = routeFactory.getRoute(List(new GHPoint(49.010796, 8.375444), new GHPoint(49.01271, 8.418016)))
+		val points: List[GHPoint] = List(new GHPoint(49.010796, 8.375444), new GHPoint(49.01271, 8.418016))
+		val route = routeFactory.simplify(routeFactory.getRoute(points).parts, 2.0)
 
 		val simulation: ActorBasedSimulation = new ActorBasedSimulation(route)
 		simulation.timer ! new Start
