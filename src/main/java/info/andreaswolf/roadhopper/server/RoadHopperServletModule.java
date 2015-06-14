@@ -13,5 +13,8 @@ public class RoadHopperServletModule extends com.google.inject.servlet.ServletMo
 
 		serve("/roadhopper/route").with(RoadHopperServlet.class);
 		bind(RoadHopperServlet.class).in(Singleton.class);
+
+		serve("/roadhopper/simulate").with(SimulationServlet.class);
+		bind(SimulationServlet.class).in(Singleton.class);
 	}
 }
