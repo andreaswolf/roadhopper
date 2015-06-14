@@ -1,10 +1,12 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{ActorRef, Props, Actor, ActorSystem}
+import akka.actor._
 import com.graphhopper.util.CmdArgs
 import com.graphhopper.util.shapes.GHPoint
 import info.andreaswolf.roadhopper.RoadHopper
 import info.andreaswolf.roadhopper.road.{Route, RouteFactory}
+
+import scala.collection.mutable.ListBuffer
 
 
 object ActorBasedSimulation extends App {
@@ -32,19 +34,26 @@ class ActorBasedSimulation(val route: Route) {
 
 	val timer = actorSystem.actorOf(Props[SimulationTimerActor], "timer")
 
-	// TODO this should be moved to a separate method registerComponent()
-	val vehicle = actorSystem.actorOf(Props(new VehicleActor(timer)), "vehicle")
-	ActorBasedSimulation.timeBus.subscribe(vehicle, "time.step")
+	val actorBuffer = new ListBuffer[ActorRef]()
 
-	val driver = actorSystem.actorOf(Props(new DriverActor(timer, vehicle)), "driver")
-	ActorBasedSimulation.timeBus.subscribe(driver, "time.step")
+	val vehicle = registerActor(Props(new VehicleActor(timer)), "vehicle")
+	val driver = registerActor(Props(new DriverActor(timer, vehicle)), "driver")
+	val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
 
-	val monitor = actorSystem.actorOf(Props(new VehicleStatusMonitor(timer, 2000, vehicle)))
-	ActorBasedSimulation.timeBus.subscribe(monitor, "time.step")
 
-	timer ! StartSimulation(List(vehicle, driver, monitor))
+
+	timer ! StartSimulation(actorBuffer.toList)
 
 	def shutdown() = actorSystem.shutdown()
+
+	def registerActor(actor: Props, name: String): ActorRef = {
+		val actorRef = actorSystem.actorOf(actor, name)
+		ActorBasedSimulation.timeBus.subscribe(actorRef, "time.step")
+
+		actorBuffer append actorRef
+
+		actorRef
+	}
 }
 
 
