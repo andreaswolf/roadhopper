@@ -66,5 +66,5 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D,
 		}
 	}
 
-	override def toString = f"RoadSegment($length%.2f, $orientation%.2f°)"
+	override def toString = f"RoadSegment($length%.2f, ${orientation.toDegrees}%.2f°)"
 }
