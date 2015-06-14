@@ -23,7 +23,7 @@ object ActorBasedSimulation extends App {
 		val route = routeFactory.simplify(routeFactory.getRoute(points).parts, 2.0)
 
 		val simulation: ActorBasedSimulation = new ActorBasedSimulation(route)
-		simulation.timer ! new Start
+		simulation.start()
 	}
 }
 
@@ -40,9 +40,7 @@ class ActorBasedSimulation(val route: Route) {
 	val driver = registerActor(Props(new DriverActor(timer, vehicle)), "driver")
 	val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
 
-
-
-	timer ! StartSimulation(actorBuffer.toList)
+	def start() = timer ! StartSimulation(actorBuffer.toList)
 
 	def shutdown() = actorSystem.shutdown()
 
