@@ -14,9 +14,11 @@ class VehicleStatusMonitor(val timer: ActorRef, val interval: Int, val vehicle: 
 		case Step(time) =>
 			timer ! ScheduleRequest(time + interval)
 			vehicle ! RequestVehicleStatus()
+			logger.info(f"time $time")
 
-		case VehicleStatus(time, acceleration, speed, distance, orientation) =>
-			logger.info(f"Vehicle at $time: speed = $speed%3.2f, acceleration = $acceleration%1.1f, distance = $distance%3.2f, orientation = ${orientation.toDegrees}%3.1f")
+		case VehicleStatus(time, state, travelledDistance) =>
+			logger.info(f"Vehicle at $time: speed = ${state.speed}%3.2f, acceleration = ${state.acceleration}%1.1f,"
+				+ f" distance = $travelledDistance%3.2f, orientation = ${state.orientation.toDegrees}%3.1f")
 
 	}
 

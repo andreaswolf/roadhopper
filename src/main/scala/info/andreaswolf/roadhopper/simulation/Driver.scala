@@ -30,12 +30,12 @@ class DriverActor(val timer: ActorRef, val vehicle: ActorRef) extends Actor {
 			vehicle ! RequestVehicleStatus()
 			timer ! ScheduleRequest(time + 40)
 
-		case VehicleStatus(time, currentAcceleration, currentSpeed, travelledDistance, orientation) =>
+		case VehicleStatus(time, state, travelledDistance) =>
 			//println("Checking vehicle status")
 			if (travelledDistance > 10000) {
-				if (currentSpeed < -0.25) {
+				if (state.speed < -0.25) {
 					vehicle ! SetAcceleration(1.0)
-				} else if (currentSpeed > 0.25) {
+				} else if (state.speed > 0.25) {
 					vehicle ! SetAcceleration(-1.0)
 				} else {
 					vehicle ! SetAcceleration(0.0)
