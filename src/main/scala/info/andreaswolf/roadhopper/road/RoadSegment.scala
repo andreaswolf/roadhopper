@@ -27,23 +27,24 @@ object RoadSegment {
 		val orientation = Math.atan2(Math.sin(lon2 - lon1) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) -
 			Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1))
 
-		new RoadSegment(new GHPoint3D(lat1, lon1, 0.0), new GHPoint3D(lat2, lon2, 0.0), length, orientation)
+		new RoadSegment(new GHPoint3D(lat1, lon1, 0.0), new GHPoint3D(lat2, lon2, 0.0))
 	}
 
 	def fromPoints(start: GHPoint3D, end: GHPoint3D): RoadSegment = {
 		fromCoordinates(start.lat, start.lon, end.lat, end.lon)
 	}
 
-}
+	protected def getLengthAndOrientation(start: GHPoint3D, end: GHPoint3D): Tuple2[Double,Double] = {
+		val phi1 = start.lat.toRadians
+		val phi2 = end.lat.toRadians
+		val deltaLambda = (end.lon - start.lon).toRadians
+		val x = deltaLambda * Math.cos((phi1+phi2)/2)
+		val y = phi2 - phi1
+		val length = Math.sqrt(x*x + y*y) * R
+		val orientation = Math.atan2(Math.sin(end.lon - start.lon) * Math.cos(end.lat), Math.cos(start.lat) * Math.sin(end.lat) -
+			Math.sin(start.lat) * Math.cos(end.lat) * Math.cos(end.lon - start.lon))
 
-/**
- *
- * TODO refactor constructor arguments to only include the necessary parts
- * @param _orientation The orientation in polar coordinates ([-pi..+pi), 0 = east)
- */
-class RoadSegment(val start: GHPoint3D, val end: GHPoint3D,
-                  val length: Double, private val _orientation: Double = 0.0) extends RoutePart {
-	val orientation = _orientation match {
+		val normalizedOrientation = orientation match {
 			case x if x < -Math.PI => x + (Math.PI * 2)
 			// ensure that the interval is open at the right end
 			case x if x % (Math.PI * 2) == Math.PI => -Math.PI
@@ -51,6 +52,21 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D,
 			case x if x >= Math.PI => x - (Math.PI * 2)
 			case x => x
 		}
+
+		(length, normalizedOrientation)
+	}
+
+}
+
+/**
+ *
+ */
+class RoadSegment(val start: GHPoint3D, val end: GHPoint3D) extends RoutePart {
+	lazy private val (_length, _orientation) = RoadSegment.getLengthAndOrientation(start, end)
+
+	def orientation() = _orientation
+
+	def length() = _length
 
 	/**
 	 * Returns the angle necessary to get from this segment to the given segment.
@@ -62,6 +78,7 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D,
 		nextSegment.orientation - orientation match {
 			case x if x >= Math.PI * 2 => x % Math.PI
 			case x if x > Math.PI => x - Math.PI * 2
+			case x if x < Math.PI => x % Math.PI
 			case x => x
 		}
 	}
