@@ -77,8 +77,10 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D) extends RoutePart {
 	def calculateNecessaryTurn(nextSegment: RoadSegment): Double = {
 		nextSegment.orientation - orientation match {
 			case x if x >= Math.PI * 2 => x % Math.PI
-			case x if x > Math.PI => x - Math.PI * 2
-			case x if x < Math.PI => x % Math.PI
+				// TODO this will not suffice if the value is greater than 3 pi/smaller than -3pi
+				// a formula to fix this could look like this: (x + ((Math.abs(x) / (Math.PI * 2)).floor * Math.PI * 2))
+			case x if x >= Math.PI => x - Math.PI * 2
+			case x if x < -Math.PI => x + Math.PI * 2
 			case x => x
 		}
 	}
