@@ -36,7 +36,7 @@ class ActorBasedSimulation(val route: Route) {
 
 	val actorBuffer = new ListBuffer[ActorRef]()
 
-	val vehicle = registerActor(Props(new VehicleActor(timer)), "vehicle")
+	val vehicle = registerActor(Props(new VehicleActor(timer, route.getRoadSegments.head.orientation)), "vehicle")
 	val driver = registerActor(Props(new DriverActor(timer, vehicle)), "driver")
 	val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
 

@@ -25,14 +25,25 @@ case class Accelerate(value: Double)
 case class Decelerate(value: Double)
 case class SetAcceleration(value: Double)
 case class RequestVehicleStatus()
-case class VehicleStatus(acceleration: Double, speed: Double, travelledDistance: Double)
+// TODO pass a VehicleState object instead
+case class VehicleStatus(time: Double, acceleration: Double, speed: Double, travelledDistance: Double, orientation: Double)
 
-class VehicleActor(val timer: ActorRef) extends Actor {
+/**
+ * Lets the vehicle turn by the given angle (in radians)
+ *
+ * @param delta
+ */
+case class Turn(delta: Double)
+
+
+class VehicleActor(val timer: ActorRef, val initialOrientation: Double = 0.0) extends Actor {
 	var steps = 0
 
 	val maxSpeed = 50.0
 	var acceleration = 0.0
 	var speed = 0.0
+
+	var orientation = initialOrientation
 
 	var lastUpdateTime = 0.0
 
@@ -63,7 +74,11 @@ class VehicleActor(val timer: ActorRef) extends Actor {
 		case SetAcceleration(value) =>
 			acceleration = value
 
+		case Turn(delta) =>
+			orientation += delta
+			println("Vehicle turned by " + delta.toDegrees + " to " + orientation.toDegrees)
+
 		case RequestVehicleStatus() =>
-			sender() ! VehicleStatus(acceleration, speed, travelledDistance)
+			sender() ! VehicleStatus(lastUpdateTime, acceleration, speed, travelledDistance, orientation)
 	}
 }
