@@ -38,6 +38,10 @@ class RouteFactory(val hopper: RoadHopper) {
 					segments append new TrafficLight(edge.getBaseNode,
 						new GHPoint3D(nodeAccess.getLat(edge.getBaseNode), nodeAccess.getLon(edge.getBaseNode), 0.0)
 					)
+				} else if (signEncoder.hasStopSign(edge.getBaseNode)) {
+					segments append new StopSign(edge.getBaseNode,
+						new GHPoint3D(nodeAccess.getLat(edge.getBaseNode), nodeAccess.getLon(edge.getBaseNode), 0.0)
+					)
 				}
 				// TODO move creating the road segments for one edge to a separate method
 				for (point <- edge.fetchWayGeometry(3)) {

@@ -12,6 +12,10 @@ drawRouteCallback = function (jsonData) {
 		iconUrl: './img/traffic_light.png',
 		iconAnchor: [12, 12]
 	});
+	var stopSignIcon = L.icon({
+		iconUrl: './img/stop_sign.png',
+		iconAnchor: [12, 12]
+	});
 	var towerNodeIcon = L.icon({
 		iconUrl: './img/tower_node.png',
 		iconAnchor: [12, 12]
@@ -26,6 +30,8 @@ drawRouteCallback = function (jsonData) {
 	function getIconForTower(node) {
 		if (node["info"] == "TrafficLight") {
 			return trafficLightIcon;
+		} else if (node["info"] == "StopSign") {
+			return stopSignIcon;
 		} else {
 			return towerNodeIcon;
 		}

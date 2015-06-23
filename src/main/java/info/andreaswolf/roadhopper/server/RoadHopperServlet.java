@@ -132,6 +132,8 @@ public class RoadHopperServlet extends GraphHopperServlet
 						encoder.encodeRoadSegment(partInfo, ((RoadSegment) part), false);
 					} else if (part instanceof TrafficLight) {
 						encoder.encodeTrafficLight(partInfo, ((TrafficLight) part));
+					} else if (part instanceof StopSign) {
+						encoder.encodeStopSign(partInfo, ((StopSign) part));
 					}
 
 					pointList.add(partInfo);
@@ -197,6 +199,13 @@ public class RoadHopperServlet extends GraphHopperServlet
 			partInfo.put("id", trafficLight.id());
 			partInfo.put("coordinates", trafficLight.coordinates().toGeoJson());
 		}
+
+		public void encodeStopSign(HashMap<String, Object> partInfo, StopSign sign) {
+			partInfo.put("type", "Point");
+			partInfo.put("info", "StopSign");
+			partInfo.put("id", sign.id());
+			partInfo.put("coordinates", sign.coordinates().toGeoJson());
+		}
 	}
 
 	protected class TrafficSignEnricher
@@ -215,6 +224,8 @@ public class RoadHopperServlet extends GraphHopperServlet
 					if (signEncoder.hasTrafficLight(value))
 					{
 						iconType = "trafficLight";
+					} else if (signEncoder.hasStopSign(value)) {
+						iconType = "stopSign";
 					}
 					towerNodeInfo.add(new PointInfo(nodeAccess.getLat(value), nodeAccess.getLon(value), iconType));
 					return true;
