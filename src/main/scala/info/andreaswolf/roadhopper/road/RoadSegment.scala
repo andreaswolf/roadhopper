@@ -18,23 +18,21 @@ object RoadSegment {
 	 * <http://www.movable-type.co.uk/scripts/latlong.html>
 	 */
 	def fromCoordinates(lat1: Double, lon1: Double, lat2: Double, lon2: Double) : RoadSegment = {
-		val phi1 = lat1.toRadians
-		val phi2 = lat2.toRadians
-		val deltaLambda = (lon2 - lon1).toRadians
-		val x = deltaLambda * Math.cos((phi1+phi2)/2)
-		val y = phi2 - phi1
-		val length = Math.sqrt(x*x + y*y) * R
-		val orientation = Math.atan2(Math.sin(lon2 - lon1) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) -
-			Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1))
-
 		new RoadSegment(new GHPoint3D(lat1, lon1, 0.0), new GHPoint3D(lat2, lon2, 0.0))
 	}
 
 	def fromPoints(start: GHPoint3D, end: GHPoint3D): RoadSegment = {
-		fromCoordinates(start.lat, start.lon, end.lat, end.lon)
+		new RoadSegment(start, end)
 	}
 
-	protected def getLengthAndOrientation(start: GHPoint3D, end: GHPoint3D): Tuple2[Double,Double] = {
+	/**
+	 * Returns the length and orientation of the road segment. The returned length is slightly inaccurate, as
+	 * the calculation does not take into account the bended earth surface
+	 *
+	 * @param start The start coordinate
+	 * @param end The end coordinate
+	 */
+	protected def getLengthAndOrientation(start: GHPoint3D, end: GHPoint3D): (Double, Double) = {
 		val phi1 = start.lat.toRadians
 		val phi2 = end.lat.toRadians
 		val deltaLambda = (end.lon - start.lon).toRadians
@@ -45,12 +43,12 @@ object RoadSegment {
 			Math.sin(start.lat) * Math.cos(end.lat) * Math.cos(end.lon - start.lon))
 
 		val normalizedOrientation = orientation match {
-			case x if x < -Math.PI => x + (Math.PI * 2)
+			case o if o < -Math.PI => o + (Math.PI * 2)
 			// ensure that the interval is open at the right end
-			case x if x % (Math.PI * 2) == Math.PI => -Math.PI
-			case x if x >= Math.PI * 2 => (x - Math.PI * 2) % (Math.PI * 2)
-			case x if x >= Math.PI => x - (Math.PI * 2)
-			case x => x
+			case o if o % (Math.PI * 2) == Math.PI => -Math.PI
+			case o if o >= Math.PI * 2 => (o - Math.PI * 2) % (Math.PI * 2)
+			case o if o >= Math.PI => o - (Math.PI * 2)
+			case o => o
 		}
 
 		(length, normalizedOrientation)
@@ -62,11 +60,8 @@ object RoadSegment {
  *
  */
 class RoadSegment(val start: GHPoint3D, val end: GHPoint3D) extends RoutePart {
-	lazy private val (_length, _orientation) = RoadSegment.getLengthAndOrientation(start, end)
-
-	def orientation() = _orientation
-
-	def length() = _length
+	// length is slightly inaccurate as we use a simplified formula for calculating it
+	lazy val (length, orientation) = RoadSegment.getLengthAndOrientation(start, end)
 
 	/**
 	 * Returns the angle necessary to get from this segment to the given segment.
