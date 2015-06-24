@@ -98,7 +98,10 @@ public class RoadHopperServlet extends GraphHopperServlet
 			ghRsp = hopper.route(request);
 			info.andreaswolf.roadhopper.route.Route route = hopper.createRoute(request);
 			RouteFactory factory = new RouteFactory(hopper);
-			hopperRoute = factory.simplify(factory.createRouteFromPaths(JavaConversions.asScalaBuffer(route.getPaths()).toList()).parts(), 2.0);
+			hopperRoute = factory.createRouteFromPaths(JavaConversions.asScalaBuffer(route.getPaths()).toList());
+			if (getParam(httpRequest, "simplify", "1").equals("1")) {
+				hopperRoute = factory.simplify(hopperRoute.parts(), 2.0);
+			}
 		}
 
 		float took = sw.stop().getSeconds();

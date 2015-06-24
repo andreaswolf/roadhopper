@@ -79,6 +79,14 @@ drawRouteCallback = function (jsonData) {
 
 };
 
+var originalInit = GHRequest.prototype.init;
+GHRequest.prototype.init = function(params) {
+	originalInit.call(this, params);
+	if (params.hasOwnProperty("simplify")) {
+		this.api_params["simplify"] = params["simplify"];
+	}
+};
+
 GHRequest.prototype.createURL = function () {
 	return this.createPath(this.host + "/roadhopper/route?" + this.createPointParams(false) + "&type=" + this.dataType + "&key=" + this.key);
 };
