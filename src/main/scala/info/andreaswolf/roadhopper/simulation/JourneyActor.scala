@@ -8,6 +8,8 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 	var remainingSegments = route.getRoadSegments
 	var travelledUntilCurrentSegment = 0.0
 
+	var currentTime = 0
+
 	override def receive: Receive = {
 		case Start() =>
 			println("Journey started")
@@ -16,7 +18,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 		case Step(time) =>
 			if (remainingSegments.nonEmpty) {
 				vehicle ! RequestVehicleStatus()
-				timer ! ScheduleRequest(time + 10)
+				currentTime = time
 			} else {
 				println("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
 				timer ! Pass
@@ -39,6 +41,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 				println("RoadSegment ended, new segment length: " + remainingSegments.length)
 				println("Remaining segments: " + remainingSegments.length)
 			}
+			timer ! ScheduleRequest(currentTime + 10)
 
 	}
 }
