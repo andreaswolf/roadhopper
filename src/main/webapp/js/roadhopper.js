@@ -1,10 +1,13 @@
 var initMapOrig = initMap;
-var roadSignLayer;
+var roadSignLayer, turnLines;
 initMap = function(selectLayer) {
 	initMapOrig(selectLayer);
 
 	roadSignLayer = L.geoJson().addTo(map);
 	layerControl.addOverlay(roadSignLayer, "Road Signs");
+
+	turnLines = L.geoJson().addTo(map);
+	layerControl.addOverlay(turnLines, "Turn lines");
 };
 
 drawRouteCallback = function (jsonData) {
@@ -24,6 +27,7 @@ drawRouteCallback = function (jsonData) {
 	// remove existing information
 	routingLayer.clearLayers();
 	roadSignLayer.clearLayers();
+	turnLines.clearLayers();
 	// re-add the start/end flags we removed earlier
 	flagAll();
 
@@ -37,7 +41,117 @@ drawRouteCallback = function (jsonData) {
 		}
 	}
 
+	var helpLinesStyle = {
+		color: '#ff0000',
+		"weight": 2,
+		"opacity": 1
+	};
+	var lines = [];
+	var j = 0, k = 0;
+	console.debug(jsonData["points"].length + " route parts");
+	while (j < jsonData["points"].length - 1 && k < 200) {
+		++k;
+		var lineA = jsonData["points"][j];
+
+		if (lineA.type != 'LineString') {
+			++j;
+			continue;
+		}
+		// TODO we assume that the last segment will always be a LineString; this should hold, but check this again
+		var lineB;
+		while (!lineB) {
+			++j;
+			if (jsonData["points"][j].type != 'LineString') {
+				continue;
+			}
+			if (j >= jsonData["points"].length - 1) {
+				break;
+			}
+			lineB = jsonData["points"][j];
+		}
+		if (!lineB) {
+			// we don’t have a valid second point -> we reached the end
+			break;
+		}
+
+		var orientationDiff = lineB["orientation"] - lineA["orientation"];
+
+		if (orientationDiff > Math.PI) {
+			orientationDiff -= Math.PI * 2;
+		}
+		orientationDiff /= 2;
+
+		var perpendicularOrientation = lineA["orientation"] + orientationDiff;
+		if (orientationDiff < 0) {
+			perpendicularOrientation -= Math.PI / 2;
+		} else {
+			perpendicularOrientation += Math.PI / 2;
+		}
+
+		var length = Math.min(lineA["length"], lineB["length"]);
+		// only draw the line if we have two short segments
+		if (length < 50) {
+			var intersection = lineA["coordinates"][1];
+			var lineEndPoint = calculateEndPoint(intersection, length * 5, perpendicularOrientation);
+			lines.push({
+				coordinates: [intersection, lineEndPoint],
+				type: "LineString",
+				baseLength: length,
+				orientation: perpendicularOrientation
+			});
+		}
+		lineB = null;
+	}
+	L.geoJson(lines, {
+		style: helpLinesStyle,
+		onEachFeature: function(feature, layer) {
+			layer.bindPopup("Base length: " + feature.baseLength.toFixed(1) + " - orientation: "
+					+ toNormalizedDegrees(feature.orientation) + "°");
+		}
+	}).addTo(turnLines);
+
 	var i = 0;
+
+	/**
+	 * Calculates the end point when going the given distance into the given direction from the start point.
+	 *
+	 * This uses plane geometry, so the earth’s rounded surface is not
+	 *
+	 * See http://stackoverflow.com/a/2188606 for the original inspiration.
+	 *
+	 * @param startPoint [double, double] startPoint The start point as [lon, lat] (sic!)
+	 * @param distance double distance The distance in meters
+	 * @param bearing double bearing The (initial) bearing in radians, with 0 being "north"
+	 */
+	function calculateEndPoint(startPoint, distance, bearing) {
+		// Normalize the bearing to 0..2pi
+		bearing %= Math.PI * 2;
+		if (bearing < 0) {
+			bearing += Math.PI * 2;
+		}
+
+		var dx = distance * Math.sin(bearing),
+			dy = distance * Math.cos(bearing),
+			deltaLon = dx / (111320 * Math.cos(startPoint[1] / 180 * Math.PI)),
+			deltaLat = dy / 110540;
+
+		return [
+			startPoint[0] + deltaLon,
+			startPoint[1] + deltaLat
+		];
+	}
+
+	/**
+	 * Converts an angle in radians to 0..360°.
+	 */
+	function toNormalizedDegrees(orientation) {
+		return ((orientation * 180 / Math.PI + 360) % 360).toFixed(1);
+	}
+
+	function toDegrees(radians) {
+		return ((radians * 180 / Math.PI) % 360).toFixed(1);
+	}
+
 	L.geoJson(jsonData["points"], {
 		filter: function(feature) {
 			return feature.type == 'LineString';
@@ -53,7 +167,7 @@ drawRouteCallback = function (jsonData) {
 		onEachFeature: function(feature, layer) {
 			if (feature.length) {
 				layer.bindPopup(i + " - Länge: " + feature.length.toFixed(0) + " - "
-					+ ((feature.orientation * 180/Math.PI + 360) % 360).toFixed(1) + "°"
+					+ toNormalizedDegrees(feature.orientation) + "°"
 				);
 			}
 			++i;
@@ -69,7 +183,6 @@ drawRouteCallback = function (jsonData) {
 			return L.marker(latlng, {icon: getIconForTower(feature)});
 		},
 		onEachFeature: function(feature, layer) {
-			console.debug(feature);
 			if (feature.id) {
 				layer.bindPopup(i + " - " + t + " - Node ID: " + feature.id);
 			}
