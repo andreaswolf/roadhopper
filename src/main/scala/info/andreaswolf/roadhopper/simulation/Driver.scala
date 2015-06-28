@@ -15,23 +15,28 @@ class Driver {
 }
 
 
-class DriverActor(val timer: ActorRef, val vehicle: ActorRef) extends Actor {
+class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: ActorRef) extends Actor {
 	var steps = 0
+	protected var currentTime = 0
 
 	override def receive: Receive = {
 		case Start() =>
 			println("Driver starting")
-			timer ! ScheduleRequest(10)
 			vehicle ! Accelerate(1.0)
+			timer ! ScheduleRequest(40)
 
 		case Step(time) =>
-			//println("Driver reached " + time)
-
+			currentTime = time
 			vehicle ! RequestVehicleStatus()
-			timer ! ScheduleRequest(time + 40)
+
+		case RoadAhead(time, roadParts) =>
+			if (currentTime % 2000 == 0) {
+				println(roadParts.length + " road segment immediately ahead; " + currentTime)
+			}
+
+			timer ! ScheduleRequest(currentTime + 40)
 
 		case VehicleStatus(time, state, travelledDistance) =>
-			//println("Checking vehicle status")
 			if (travelledDistance > 10000) {
 				if (state.speed < -0.25) {
 					vehicle ! SetAcceleration(1.0)
@@ -42,5 +47,20 @@ class DriverActor(val timer: ActorRef, val vehicle: ActorRef) extends Actor {
 					timer ! StopSimulation()
 				}
 			}
+			journey ! RequestRoadAhead(travelledDistance.toInt)
 	}
+}
+
+/**
+ * A bend in the road, i.e. a change of direction over one or multiple segments
+ *
+ * @param length The length of the arc
+ * @param angle The turn angle
+ */
+class RoadBend(val length: Double, val direction: TurnDirection, val angle: Double) {
+
+}
+
+class TurnDirection extends Enumeration {
+	val LEFT, RIGHT = Value
 }

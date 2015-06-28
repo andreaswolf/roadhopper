@@ -63,7 +63,7 @@ class RouteFactory(val hopper: RoadHopper) {
 	}
 
 	def simplify(parts: List[RoutePart], delta: Double = 2.0): Route = {
-		val segments: ListBuffer[RoutePart] = new ListBuffer[RoutePart]
+		val segments = new ListBuffer[RoutePart]
 
 		if (parts.isEmpty) {
 			return new Route(segments.result())

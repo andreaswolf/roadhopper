@@ -1,11 +1,17 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor.{ActorRef, Actor}
-import info.andreaswolf.roadhopper.road.{RoadSegment, Route}
+import info.andreaswolf.roadhopper.road.{RoutePart, RoadSegment, Route}
+
+import scala.collection.mutable.ListBuffer
+
+case class RequestRoadAhead(position: Int)
+case class RoadAhead(time: Int, roadParts: List[RoutePart])
 
 class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route) extends Actor {
 
 	var remainingSegments = route.getRoadSegments
+	var currentSegment = remainingSegments.head
 	var travelledUntilCurrentSegment = 0.0
 
 	var currentTime = 0
@@ -16,13 +22,32 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 			timer ! ScheduleRequest(10)
 
 		case Step(time) =>
+			currentTime = time
 			if (remainingSegments.nonEmpty) {
 				vehicle ! RequestVehicleStatus()
-				currentTime = time
 			} else {
 				println("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
 				timer ! Pass
 			}
+
+		case RequestRoadAhead(position) =>
+			// TODO dynamically calculate the base distance to get (e.g. based on speed)
+			// make sure we only get segments after the current segment
+			val remainingOnCurrentSegment = currentSegment.length - (position - travelledUntilCurrentSegment)
+			// if the length to get is 0, we will be on the current segment for all of the look-ahead distance
+			var lengthToGet = Math.max(0, 150.0 - remainingOnCurrentSegment)
+
+			// TODO create a temporary shorter segment from the current segment; we need this to get the correct distance
+			// until the first turn
+			val segmentsAhead = new ListBuffer[RoutePart]
+			segmentsAhead append currentSegment
+			remainingSegments.foreach(segment => {
+				if (lengthToGet > 0) {
+					segmentsAhead append segment
+					lengthToGet -= segment.length
+				}
+			})
+			sender ! new RoadAhead(currentTime, segmentsAhead.toList)
 
 		case VehicleStatus(time, state, travelledDistance) =>
 			if (remainingSegments.nonEmpty && travelledDistance > travelledUntilCurrentSegment + remainingSegments.head.length) {
@@ -31,7 +56,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 				// we might get a larger offset
 				travelledUntilCurrentSegment = travelledDistance
 
-				val currentSegment = remainingSegments.head
+				currentSegment = remainingSegments.head
 				remainingSegments = remainingSegments.tail
 				if (remainingSegments.nonEmpty) {
 					val nextSegment = remainingSegments.head
