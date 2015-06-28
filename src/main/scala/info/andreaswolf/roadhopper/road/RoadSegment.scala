@@ -39,8 +39,8 @@ object RoadSegment {
 		val x = deltaLambda * Math.cos((phi1+phi2)/2)
 		val y = phi2 - phi1
 		val length = Math.sqrt(x*x + y*y) * R
-		val orientation = Math.atan2(Math.sin(end.lon - start.lon) * Math.cos(end.lat), Math.cos(start.lat) * Math.sin(end.lat) -
-			Math.sin(start.lat) * Math.cos(end.lat) * Math.cos(end.lon - start.lon))
+		val orientation = Math.atan2(Math.sin(deltaLambda) * Math.cos(phi2), Math.cos(phi1) * Math.sin(phi2) -
+			Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda))
 
 		val normalizedOrientation = orientation match {
 			case o if o < -Math.PI => o + (Math.PI * 2)
