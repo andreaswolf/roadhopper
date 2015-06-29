@@ -50,7 +50,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 			sender ! new RoadAhead(currentTime, segmentsAhead.toList)
 
 		case VehicleStatus(time, state, travelledDistance) =>
-			if (remainingSegments.nonEmpty && travelledDistance > travelledUntilCurrentSegment + remainingSegments.head.length) {
+			if (remainingSegments.nonEmpty && travelledDistance > travelledUntilCurrentSegment + currentSegment.length) {
 				// TODO this brings a slight inaccuracy into the calculation, which will lead to longer travelling
 				// distances. The difference is negligible for long segments, but for many consecutive short segments,
 				// we might get a larger offset
@@ -63,7 +63,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 
 					vehicle ! Turn(currentSegment.calculateNecessaryTurn(nextSegment))
 				}
-				println("RoadSegment ended, new segment length: " + remainingSegments.length)
+				println("RoadSegment ended, new segment length: " + currentSegment.length.round)
 				println("Remaining segments: " + remainingSegments.length)
 			}
 			timer ! ScheduleRequest(currentTime + 10)
