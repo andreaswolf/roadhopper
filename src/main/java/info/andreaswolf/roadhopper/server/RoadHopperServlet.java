@@ -127,6 +127,7 @@ public class RoadHopperServlet extends GraphHopperServlet
 			if (hopperRoute != null)
 			{
 				GeoJsonEncoder encoder = new GeoJsonEncoder();
+				// The list of points/road segments that make up the route
 				List<Object> pointList = new ArrayList<Object>(10);
 				for (RoutePart part : JavaConversions.asJavaCollection(hopperRoute.parts()))
 				{
@@ -142,6 +143,10 @@ public class RoadHopperServlet extends GraphHopperServlet
 					pointList.add(partInfo);
 				}
 				map.put("points", pointList);
+
+				List<Object> additionalInfo = new ArrayList<Object>(10);
+				analyzeRoadBends(additionalInfo, hopperRoute);
+				map.put("additionalInfo", additionalInfo);
 
 				// TODO enrich response with more information;
 				//new TrafficSignEnricher().enrich(map, route);
@@ -171,6 +176,22 @@ public class RoadHopperServlet extends GraphHopperServlet
 		return jsonPoints;
 	}
 
+
+	protected void analyzeRoadBends(List<Object> points, Route route) {
+		final RoadBendEvaluator evaluator = new RoadBendEvaluator();
+		final GeoJsonEncoder encoder = new GeoJsonEncoder();
+
+		scala.collection.immutable.List<RoadBend> bends = evaluator.findBend(route.getRoadSegments());
+
+		HashMap<String, Object> bendInfo;
+
+		for (RoadBend bend : JavaConversions.asJavaIterable(bends)) {
+			bendInfo = new HashMap<String, Object>();
+			encoder.encodeRoadBend(bendInfo, bend);
+
+			points.add(bendInfo);
+		}
+	}
 
 	protected class GeoJsonEncoder
 	{
@@ -208,6 +229,16 @@ public class RoadHopperServlet extends GraphHopperServlet
 			partInfo.put("info", "StopSign");
 			partInfo.put("id", sign.id());
 			partInfo.put("coordinates", sign.coordinates().toGeoJson());
+		}
+
+		public void encodeRoadBend(HashMap<String, Object> partInfo, RoadBend bend) {
+			partInfo.put("type", "Point");
+			partInfo.put("info", "RoadBend");
+			partInfo.put("length", bend.length());
+			partInfo.put("angle", bend.angle());
+			partInfo.put("radius", bend.radius());
+			partInfo.put("direction", bend.direction().id());
+			partInfo.put("coordinates", bend.firstSegment().start().toGeoJson());
 		}
 	}
 

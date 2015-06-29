@@ -1,6 +1,7 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor.{Actor, ActorRef}
+import info.andreaswolf.roadhopper.road.{RoadBendEvaluator, RoadSegment}
 
 /**
  * A vehicle driver, responsible for steering the vehicle.
@@ -19,6 +20,8 @@ class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: Actor
 	var steps = 0
 	protected var currentTime = 0
 
+	val bendEvaluator = new RoadBendEvaluator
+
 	override def receive: Receive = {
 		case Start() =>
 			println("Driver starting")
@@ -32,6 +35,7 @@ class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: Actor
 		case RoadAhead(time, roadParts) =>
 			if (currentTime % 2000 == 0) {
 				println(roadParts.length + " road segment immediately ahead; " + currentTime)
+				println(bendEvaluator.findBend(roadParts.collect { case b:RoadSegment => b }))
 			}
 
 			timer ! ScheduleRequest(currentTime + 40)
@@ -49,18 +53,4 @@ class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: Actor
 			}
 			journey ! RequestRoadAhead(travelledDistance.toInt)
 	}
-}
-
-/**
- * A bend in the road, i.e. a change of direction over one or multiple segments
- *
- * @param length The length of the arc
- * @param angle The turn angle
- */
-class RoadBend(val length: Double, val direction: TurnDirection, val angle: Double) {
-
-}
-
-class TurnDirection extends Enumeration {
-	val LEFT, RIGHT = Value
 }

@@ -23,6 +23,14 @@ drawRouteCallback = function (jsonData) {
 		iconUrl: './img/tower_node.png',
 		iconAnchor: [12, 12]
 	});
+	var bendLeft = L.icon({
+		iconUrl: './img/bend_left.png',
+		iconAnchor: [12, 12]
+	});
+	var bendRight = L.icon({
+		iconUrl: './img/bend_right.png',
+		iconAnchor: [12, 12]
+	});
 
 	// remove existing information
 	routingLayer.clearLayers();
@@ -39,6 +47,10 @@ drawRouteCallback = function (jsonData) {
 		} else {
 			return towerNodeIcon;
 		}
+	}
+
+	function getIconForBend(node) {
+		return node["direction"] == 0 ? bendLeft : bendRight;
 	}
 
 	var helpLinesStyle = {
@@ -59,7 +71,7 @@ drawRouteCallback = function (jsonData) {
 		}
 		// TODO we assume that the last segment will always be a LineString; this should hold, but check this again
 		var lineB;
-		while (!lineB) {
+		while (!lineB && j < jsonData["points"].length - 1) {
 			++j;
 			if (jsonData["points"][j].type != 'LineString') {
 				continue;
@@ -187,6 +199,19 @@ drawRouteCallback = function (jsonData) {
 				layer.bindPopup(i + " - " + t + " - Node ID: " + feature.id);
 			}
 			++i; ++t;
+		}
+	}).addTo(roadSignLayer);
+
+	L.geoJson(jsonData["additionalInfo"], {
+		filter: function (feature) {
+			console.debug(feature);
+			return feature.type == "Point" && feature.info == "RoadBend";
+		},
+		pointToLayer: function(feature, latlng) {
+			return L.marker(latlng, {icon: getIconForBend(feature)});
+		},
+		onEachFeature: function(feature, layer) {
+			//layer.bindPopup(i + " - " + t + " - Node ID: " + feature.id);
 		}
 	}).addTo(roadSignLayer);
 
