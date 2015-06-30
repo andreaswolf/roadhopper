@@ -129,15 +129,13 @@ public class RoadHopperServlet extends GraphHopperServlet
 				GeoJsonEncoder encoder = new GeoJsonEncoder();
 				// The list of points/road segments that make up the route
 				List<Object> pointList = new ArrayList<Object>(10);
-				for (RoutePart part : JavaConversions.asJavaCollection(hopperRoute.parts()))
+				for (RoadSegment part : JavaConversions.asJavaCollection(hopperRoute.parts()))
 				{
 					HashMap<String, Object> partInfo = new HashMap<String, Object>();
-					if (part instanceof RoadSegment) {
-						encoder.encodeRoadSegment(partInfo, ((RoadSegment) part), false);
-					} else if (part instanceof TrafficLight) {
-						encoder.encodeTrafficLight(partInfo, ((TrafficLight) part));
-					} else if (part instanceof StopSign) {
-						encoder.encodeStopSign(partInfo, ((StopSign) part));
+					encoder.encodeRoadSegment(partInfo, part, false);
+
+					if (!part.roadSign().isEmpty()) {
+						encoder.encodeRoadSign(pointList, part.roadSign().get());
 					}
 
 					pointList.add(partInfo);
@@ -217,18 +215,15 @@ public class RoadHopperServlet extends GraphHopperServlet
 			partInfo.put("orientation", segment.orientation());
 		}
 
-		public void encodeTrafficLight(HashMap<String, Object> partInfo, TrafficLight trafficLight) {
-			partInfo.put("type", "Point");
-			partInfo.put("info", "TrafficLight");
-			partInfo.put("id", trafficLight.id());
-			partInfo.put("coordinates", trafficLight.coordinates().toGeoJson());
-		}
+		public void encodeRoadSign(List<Object> pointList, RoadSign sign) {
+			HashMap<String, Object> partInfo = new HashMap<String, Object>();
 
-		public void encodeStopSign(HashMap<String, Object> partInfo, StopSign sign) {
 			partInfo.put("type", "Point");
-			partInfo.put("info", "StopSign");
+			partInfo.put("info", sign.typeInfo());
 			partInfo.put("id", sign.id());
 			partInfo.put("coordinates", sign.coordinates().toGeoJson());
+
+			pointList.add(partInfo);
 		}
 
 		public void encodeRoadBend(HashMap<String, Object> partInfo, RoadBend bend) {

@@ -24,7 +24,7 @@ class RouteFactory(val hopper: RoadHopper) {
 
 	def createRouteFromPaths(paths: List[Path]): Route = {
 		import scala.collection.JavaConversions._
-		val segments: ListBuffer[RoutePart] = new ListBuffer[RoutePart]
+		val segments = new ListBuffer[RoadSegment]
 		var lastPoint: Option[GHPoint3D] = None
 
 		val signEncoder: RoadSignEncoder = new RoadSignEncoder(hopper.getGraph)
@@ -34,15 +34,6 @@ class RouteFactory(val hopper: RoadHopper) {
 			// NOTE the first and last edges might be incomplete, as we enter the road through it! -> conclusion: do not use
 			// the edges for any calculations, but instead rely on the points
 			for (edge <- paths.get(i).calcEdges()) {
-				if (signEncoder.hasTrafficLight(edge.getBaseNode)) {
-					segments append new TrafficLight(edge.getBaseNode,
-						new GHPoint3D(nodeAccess.getLat(edge.getBaseNode), nodeAccess.getLon(edge.getBaseNode), 0.0)
-					)
-				} else if (signEncoder.hasStopSign(edge.getBaseNode)) {
-					segments append new StopSign(edge.getBaseNode,
-						new GHPoint3D(nodeAccess.getLat(edge.getBaseNode), nodeAccess.getLon(edge.getBaseNode), 0.0)
-					)
-				}
 				// TODO move creating the road segments for one edge to a separate method
 				for (point <- edge.fetchWayGeometry(3)) {
 					breakable {
@@ -56,14 +47,24 @@ class RouteFactory(val hopper: RoadHopper) {
 						lastPoint = Some(point)
 					}
 				}
+				val endNodeId: Int = edge.getAdjNode
+				if (signEncoder.hasTrafficLight(endNodeId)) {
+					segments.last.setRoadSign(new TrafficLight(endNodeId,
+						new GHPoint3D(nodeAccess.getLat(endNodeId), nodeAccess.getLon(endNodeId), 0.0)
+					))
+				} else if (signEncoder.hasStopSign(endNodeId)) {
+					segments.last.setRoadSign(new StopSign(endNodeId,
+						new GHPoint3D(nodeAccess.getLat(endNodeId), nodeAccess.getLon(endNodeId), 0.0)
+					))
+				}
 			}
 		}
 
 		new Route(segments.result())
 	}
 
-	def simplify(parts: List[RoutePart], delta: Double = 2.0): Route = {
-		val segments = new ListBuffer[RoutePart]
+	def simplify(parts: List[RoadSegment], delta: Double = 2.0): Route = {
+		val segments = new ListBuffer[RoadSegment]
 
 		if (parts.isEmpty) {
 			return new Route(segments.result())
@@ -72,24 +73,22 @@ class RouteFactory(val hopper: RoadHopper) {
 		// as read access to the head of a list is more convenient, we always insert elements at the beginning -> the result
 		// will be inverted
 		segments prepend parts.head
-		for (part <- parts.tail) {
-			if (!segments.head.isInstanceOf[RoadSegment] || !part.isInstanceOf[RoadSegment]) {
-				segments prepend part
+		for (currentSegment <- parts.tail) {
+			// TODO this code part is really ugly – check if we can improve this
+			val lastSegment: RoadSegment = segments.head
+			// make sure we have a small change in orientation and the last segment has no road sign at the end
+			if (lastSegment.roadSign.isEmpty && Math.abs(
+					(lastSegment.orientation - currentSegment.orientation).toDegrees
+				) < delta) {
+
+				val totalLength = lastSegment.length + currentSegment.asInstanceOf[RoadSegment].length
+				val mediumOrientation = (lastSegment.orientation + currentSegment.asInstanceOf[RoadSegment].orientation) / 2
+
+				val newSegment: RoadSegment = RoadSegment.fromPoints(lastSegment.start, currentSegment.asInstanceOf[RoadSegment].end)
+				newSegment.setRoadSign(currentSegment.roadSign)
+				segments update(0, newSegment)
 			} else {
-				// TODO this code part is really ugly – check if we can improve this
-				val lastSegment: RoadSegment = segments.head.asInstanceOf[RoadSegment]
-				if (Math.abs(
-						(lastSegment.orientation - part.asInstanceOf[RoadSegment].orientation).toDegrees
-					) < delta) {
-
-					val totalLength = lastSegment.length + part.asInstanceOf[RoadSegment].length
-					val mediumOrientation = (lastSegment.orientation + part.asInstanceOf[RoadSegment].orientation) / 2
-
-					val newSegment: RoadSegment = RoadSegment.fromPoints(lastSegment.start, part.asInstanceOf[RoadSegment].end)
-					segments update(0, newSegment)
-				} else {
-					segments prepend part
-				}
+				segments prepend currentSegment
 			}
 		}
 

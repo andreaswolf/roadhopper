@@ -8,4 +8,6 @@ trait RoadSign extends RoutePart {
 
 	val id: Int
 
+	val typeInfo: String
+
 }

@@ -63,6 +63,11 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D) extends RoutePart {
 	// length is slightly inaccurate as we use a simplified formula for calculating it
 	lazy val (length, orientation) = RoadSegment.getLengthAndOrientation(start, end)
 
+	var roadSign = None: Option[RoadSign]
+
+	def setRoadSign(sign: RoadSign) : Unit = roadSign = Some(sign)
+	def setRoadSign(sign: Option[RoadSign]) : Unit = roadSign = sign
+
 	/**
 	 * Returns the angle necessary to get from this segment to the given segment.
 	 *

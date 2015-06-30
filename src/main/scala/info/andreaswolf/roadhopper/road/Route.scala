@@ -1,6 +1,6 @@
 package info.andreaswolf.roadhopper.road
 
-class Route(val parts: List[RoutePart]) {
+class Route(val parts: List[RoadSegment]) {
 
 	/**
 	 * The length of the road
@@ -34,7 +34,7 @@ class Route(val parts: List[RoutePart]) {
 	/**
 	 * Returns a list of (x, y) pairs for the road segment points.
 	 */
-	def roadSegmentCoordinates: List[Tuple2[Double, Double]] = {
+	def roadSegmentCoordinates: List[(Double, Double)] = {
 		val coordinates = getRoadSegments map ((s: RoadSegment) => {
 			val angle = s.orientation
 			val x = Math.cos(angle) * s.length
