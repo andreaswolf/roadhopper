@@ -141,16 +141,26 @@ drawRouteCallback = function (jsonData) {
 		if (bearing < 0) {
 			bearing += Math.PI * 2;
 		}
+		var latitude;
+		if (startPoint instanceof L.LatLng) {
+			latitude = startPoint.lat;
+		} else {
+			latitude = startPoint[1];
+		}
 
 		var dx = distance * Math.sin(bearing),
 			dy = distance * Math.cos(bearing),
-			deltaLon = dx / (111320 * Math.cos(startPoint[1] / 180 * Math.PI)),
+			deltaLon = dx / (111320 * Math.cos(latitude / 180 * Math.PI)),
 			deltaLat = dy / 110540;
 
-		return [
-			startPoint[0] + deltaLon,
-			startPoint[1] + deltaLat
-		];
+		if (startPoint instanceof L.LatLng) {
+			return new L.LatLng(startPoint.lat + deltaLat, startPoint.lng + deltaLon);
+		} else {
+			return [
+				startPoint[0] + deltaLon,
+				startPoint[1] + deltaLat
+			];
+		}
 	}
 
 	/**
@@ -208,10 +218,15 @@ drawRouteCallback = function (jsonData) {
 			return feature.type == "Point" && feature.info == "RoadBend";
 		},
 		pointToLayer: function(feature, latlng) {
-			return L.marker(latlng, {icon: getIconForBend(feature)});
+			var latlng2 = calculateEndPoint(latlng, 5, Math.PI);
+			return L.marker(latlng2, {icon: getIconForBend(feature)});
 		},
 		onEachFeature: function(feature, layer) {
-			//layer.bindPopup(i + " - " + t + " - Node ID: " + feature.id);
+			layer.bindPopup("<strong>Road bend</strong><br />"
+					+ "Richtung: " + (feature.direction == 0 ? 'links' : 'rechts') + "<br/>"
+					+ "Länge: " + feature.length.toFixed(1) + "m<br />"
+					+ "Winkeländerung: " + toDegrees(feature.angle) + "°<br />"
+					+ "Radius: " + feature.radius.toFixed(1) + "m");
 		}
 	}).addTo(roadSignLayer);
 
