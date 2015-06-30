@@ -55,7 +55,7 @@ class RoadBendEvaluator {
 class RoadBend(val length: Double, val direction: TurnDirection.Value, val angle: Double, val segmentCount: Int,
                val firstSegment: RoadSegment) {
 
-	lazy val radius = length / angle
+	lazy val radius = Math.abs(length / angle)
 
 	override def toString: String = f"RoadBend<$segmentCount: ${length.round} m, radius $radius%.2f m, $direction, $angle%.4f rad>"
 }
