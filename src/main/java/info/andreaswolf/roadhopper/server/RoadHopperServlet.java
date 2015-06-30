@@ -233,6 +233,7 @@ public class RoadHopperServlet extends GraphHopperServlet
 			partInfo.put("angle", bend.angle());
 			partInfo.put("radius", bend.radius());
 			partInfo.put("direction", bend.direction().id());
+			partInfo.put("initialOrientation", bend.firstSegment().orientation());
 			partInfo.put("coordinates", bend.firstSegment().start().toGeoJson());
 		}
 	}

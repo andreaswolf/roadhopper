@@ -218,7 +218,9 @@ drawRouteCallback = function (jsonData) {
 			return feature.type == "Point" && feature.info == "RoadBend";
 		},
 		pointToLayer: function(feature, latlng) {
-			var latlng2 = calculateEndPoint(latlng, 5, Math.PI);
+			var orientation = feature["initialOrientation"];
+			orientation += Math.PI / 2 * (feature.direction == 0 ? -1 : 1);
+			var latlng2 = calculateEndPoint(latlng, 10, orientation);
 			return L.marker(latlng2, {icon: getIconForBend(feature)});
 		},
 		onEachFeature: function(feature, layer) {
