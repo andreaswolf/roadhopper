@@ -1,7 +1,7 @@
 package info.andreaswolf.roadhopper.road
 
-
 import scala.collection.mutable.ListBuffer
+
 
 class RoadBendEvaluator {
 	def findBend(roadSegments: List[RoadSegment]): List[RoadBend] = {
@@ -17,15 +17,20 @@ class RoadBendEvaluator {
 		roadSegments.tail.foreach(seg => {
 			val angle: Double = currentSegment.calculateNecessaryTurn(seg)
 
-			if (Math.abs(angle) >= 0.0) {//(2.0 * Math.PI / 180)) {
-				if (Math.signum(turnSum) != Math.signum(angle) && Math.abs(turnSum) > 0.0 && arcLength > 0.0) {
-					// turn ended; create RoadBend instance
-					val direction = Math.signum(turnSum) match {
-						case x if x == -1.0 => TurnDirection.LEFT
-						case x if x == 1.0 => TurnDirection.RIGHT
-					}
+			// Note that we should avoid including overly long segments here. Try calculating the circle radius for each
+			// single bend, when the radius is too high, ignore it
+			if (Math.abs(angle) >= (5.0 * Math.PI / 180)) {
+				if (Math.signum(turnSum) != Math.signum(angle) && arcLength > 0.0) {
+					// ignore small angles
+					if (Math.abs(turnSum) > (10.0 * Math.PI / 180)) {
+						// turn ended; create RoadBend instance
+						val direction = Math.signum(turnSum) match {
+							case x if x == -1.0 => TurnDirection.LEFT
+							case x if x == 1.0 => TurnDirection.RIGHT
+						}
 
-					bends append new RoadBend(arcLength, direction, turnSum, segmentCount, firstSegment)
+						bends append new RoadBend(arcLength, direction, turnSum, segmentCount, firstSegment)
+					}
 
 					turnSum = 0.0
 					arcLength = 0.0
