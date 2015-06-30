@@ -2,5 +2,6 @@ package info.andreaswolf.roadhopper.road
 
 import com.graphhopper.util.shapes.GHPoint
 
-class StopSign(val id: Int, val coordinates: GHPoint) extends RoutePart {
+
+class StopSign(override val id: Int, override val coordinates: GHPoint) extends RoadSign {
 }
