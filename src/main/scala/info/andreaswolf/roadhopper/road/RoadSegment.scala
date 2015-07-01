@@ -11,13 +11,13 @@ object RoadSegment {
 
 	/**
 	 *
-	 * @return A RoadSegment instance created from the coordinates
-	 *
 	 * Note that this uses an approximation for the length that treats the line segment as being orthogonal to the
 	 * earth’s radius (Pythagorean approximation). This is generally considered safe for the short distances we have.
 	 * <http://www.movable-type.co.uk/scripts/latlong.html>
+	 *
+	 * @return A RoadSegment instance created from the coordinates
 	 */
-	def fromCoordinates(lat1: Double, lon1: Double, lat2: Double, lon2: Double) : RoadSegment = {
+	def fromCoordinates(lat1: Double, lon1: Double, lat2: Double, lon2: Double): RoadSegment = {
 		new RoadSegment(new GHPoint3D(lat1, lon1, 0.0), new GHPoint3D(lat2, lon2, 0.0))
 	}
 
@@ -26,19 +26,45 @@ object RoadSegment {
 	}
 
 	/**
+	 * Constructs a road segment from another segment with the given offset from the start. The end point will be the same
+	 * as for the base segment
+	 *
+	 * @param offset The offset from the start in meters
+	 * @param base The road segment to use as base
+	 * @return
+	 */
+	def fromExisting(offset: Double, base: RoadSegment) = {
+		if (offset >= base.length) {
+			throw new IllegalArgumentException("Offset must be within the base segment’s length")
+		}
+
+		// see http://www.movable-type.co.uk/scripts/latlong.html
+		val oldLat = base.start.lat.toRadians
+		val oldLon = base.start.lon.toRadians
+
+		val newLat = Math.asin(Math.sin(oldLat) * Math.cos(offset / R) +
+			Math.cos(oldLat) * Math.sin(offset / R) * Math.cos(base.orientation))
+		val newLon = oldLon + Math.atan2(Math.sin(base.orientation) * Math.sin(offset / R) * Math.cos(oldLat),
+			Math.cos(offset / R) - Math.sin(oldLat) * Math.sin(newLat))
+
+		new RoadSegment(new GHPoint3D(newLat.toDegrees, newLon.toDegrees, 0.0), base)
+	}
+
+	/**
 	 * Returns the length and orientation of the road segment. The returned length is slightly inaccurate, as
 	 * the calculation does not take into account the bended earth surface
 	 *
 	 * @param start The start coordinate
 	 * @param end The end coordinate
+	 * @return (Double,Double) The length in meters and the (initial) orientation in radians
 	 */
 	protected def getLengthAndOrientation(start: GHPoint3D, end: GHPoint3D): (Double, Double) = {
 		val phi1 = start.lat.toRadians
 		val phi2 = end.lat.toRadians
 		val deltaLambda = (end.lon - start.lon).toRadians
-		val x = deltaLambda * Math.cos((phi1+phi2)/2)
+		val x = deltaLambda * Math.cos((phi1 + phi2) / 2)
 		val y = phi2 - phi1
-		val length = Math.sqrt(x*x + y*y) * R
+		val length = Math.sqrt(x * x + y * y) * R
 		val orientation = Math.atan2(Math.sin(deltaLambda) * Math.cos(phi2), Math.cos(phi1) * Math.sin(phi2) -
 			Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda))
 
@@ -60,8 +86,16 @@ object RoadSegment {
  *
  */
 class RoadSegment(val start: GHPoint3D, val end: GHPoint3D) extends RoutePart {
+
+	def this(start: GHPoint3D, base: RoadSegment) {
+		this(start, base.end)
+		roadSign = base.roadSign
+	}
+
+
 	// length is slightly inaccurate as we use a simplified formula for calculating it
 	lazy val (length, orientation) = RoadSegment.getLengthAndOrientation(start, end)
+
 
 	var roadSign = None: Option[RoadSign]
 
