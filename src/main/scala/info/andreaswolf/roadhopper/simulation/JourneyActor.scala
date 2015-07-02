@@ -29,6 +29,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 			} else {
 				log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
 				timer ! Pass
+				context.system.shutdown
 			}
 
 		case RequestRoadAhead(position) =>
