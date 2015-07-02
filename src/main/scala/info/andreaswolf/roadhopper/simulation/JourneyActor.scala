@@ -1,16 +1,17 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor.{ActorLogging, ActorRef, Actor}
-import info.andreaswolf.roadhopper.road.{RoutePart, RoadSegment, Route}
+import info.andreaswolf.roadhopper.road.{RoadSegment, Route}
 
 import scala.collection.mutable.ListBuffer
 
 case class RequestRoadAhead(position: Int)
-case class RoadAhead(time: Int, roadParts: List[RoutePart])
+
+case class RoadAhead(time: Int, roadParts: List[RoadSegment])
 
 class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route) extends Actor with ActorLogging {
 
-	var remainingSegments = route.getRoadSegments
+	var remainingSegments = route.parts
 	var currentSegment = remainingSegments.head
 	var travelledUntilCurrentSegment = 0.0
 
@@ -31,16 +32,16 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 			}
 
 		case RequestRoadAhead(position) =>
-			// TODO dynamically calculate the base distance to get (e.g. based on speed)
+			// TODO dynamically calculate the base distance to get (e.g. based on speed) or get it passed with the request
 			// make sure we only get segments after the current segment
 			val remainingOnCurrentSegment = currentSegment.length - (position - travelledUntilCurrentSegment)
 			// if the length to get is 0, we will be on the current segment for all of the look-ahead distance
 			var lengthToGet = Math.max(0, 150.0 - remainingOnCurrentSegment)
 
-			// TODO create a temporary shorter segment from the current segment; we need this to get the correct distance
-			// until the first turn
-			val segmentsAhead = new ListBuffer[RoutePart]
-			segmentsAhead append currentSegment
+			val offsetOnCurrentSegment = position - travelledUntilCurrentSegment
+
+			val segmentsAhead = new ListBuffer[RoadSegment]
+			segmentsAhead append RoadSegment.fromExisting(offsetOnCurrentSegment, currentSegment)
 			remainingSegments.foreach(segment => {
 				if (lengthToGet > 0) {
 					segmentsAhead append segment
