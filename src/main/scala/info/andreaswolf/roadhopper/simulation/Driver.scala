@@ -1,6 +1,6 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{ActorLogging, Actor, ActorRef}
 import info.andreaswolf.roadhopper.road.{RoadBendEvaluator, RoadSegment}
 
 /**
@@ -16,7 +16,7 @@ class Driver {
 }
 
 
-class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: ActorRef) extends Actor {
+class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: ActorRef) extends Actor with ActorLogging {
 	var steps = 0
 	protected var currentTime = 0
 
@@ -24,7 +24,7 @@ class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: Actor
 
 	override def receive: Receive = {
 		case Start() =>
-			println("Driver starting")
+			log.debug("Driver starting")
 			vehicle ! Accelerate(1.0)
 			timer ! ScheduleRequest(40)
 
@@ -34,8 +34,8 @@ class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: Actor
 
 		case RoadAhead(time, roadParts) =>
 			if (currentTime % 2000 == 0) {
-				println(roadParts.length + " road segment immediately ahead; " + currentTime)
-				println(bendEvaluator.findBend(roadParts.collect { case b:RoadSegment => b }))
+				log.debug(roadParts.length + " road segment(s) immediately ahead; " + currentTime)
+				log.debug(bendEvaluator.findBend(roadParts).toString())
 			}
 
 			timer ! ScheduleRequest(currentTime + 40)

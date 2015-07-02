@@ -1,6 +1,6 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{ActorLogging, ActorRef, Actor}
 import info.andreaswolf.roadhopper.road.{RoutePart, RoadSegment, Route}
 
 import scala.collection.mutable.ListBuffer
@@ -8,7 +8,7 @@ import scala.collection.mutable.ListBuffer
 case class RequestRoadAhead(position: Int)
 case class RoadAhead(time: Int, roadParts: List[RoutePart])
 
-class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route) extends Actor {
+class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route) extends Actor with ActorLogging {
 
 	var remainingSegments = route.getRoadSegments
 	var currentSegment = remainingSegments.head
@@ -18,7 +18,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 
 	override def receive: Receive = {
 		case Start() =>
-			println("Journey started")
+			log.info("Journey started")
 			timer ! ScheduleRequest(10)
 
 		case Step(time) =>
@@ -26,7 +26,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 			if (remainingSegments.nonEmpty) {
 				vehicle ! RequestVehicleStatus()
 			} else {
-				println("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
+				log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
 				timer ! Pass
 			}
 
@@ -63,8 +63,8 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 
 					vehicle ! Turn(currentSegment.calculateNecessaryTurn(nextSegment))
 				}
-				println("RoadSegment ended, new segment length: " + currentSegment.length.round)
-				println("Remaining segments: " + remainingSegments.length)
+				log.debug("RoadSegment ended, new segment length: " + currentSegment.length.round)
+				log.debug("Remaining segments: " + remainingSegments.length)
 			}
 			timer ! ScheduleRequest(currentTime + 10)
 

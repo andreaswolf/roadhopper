@@ -1,6 +1,6 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{PoisonPill, Actor, ActorRef}
+import akka.actor.{ActorLogging, PoisonPill, Actor, ActorRef}
 
 import scala.collection.mutable
 
@@ -11,7 +11,7 @@ case class Start()
 case class ScheduleRequest(time: Int)
 case class Pass()
 
-class SimulationTimerActor extends Actor {
+class SimulationTimerActor extends Actor with ActorLogging {
 	var currentTime: Int = 0
 
 	var started = false

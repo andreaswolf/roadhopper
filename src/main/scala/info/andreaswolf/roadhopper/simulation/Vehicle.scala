@@ -1,6 +1,6 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{ActorLogging, Actor, ActorRef}
 
 case class Accelerate(value: Double)
 case class Decelerate(value: Double)
@@ -17,7 +17,7 @@ case class VehicleStatus(time: Double, state: VehicleState, travelledDistance: D
 case class Turn(delta: Double)
 
 
-class VehicleActor(val timer: ActorRef, val initialOrientation: Double = 0.0) extends Actor {
+class VehicleActor(val timer: ActorRef, val initialOrientation: Double = 0.0) extends Actor with ActorLogging {
 	var steps = 0
 
 	val maxSpeed = 50.0
@@ -57,7 +57,7 @@ class VehicleActor(val timer: ActorRef, val initialOrientation: Double = 0.0) ex
 
 		case Turn(delta) =>
 			orientation += delta
-			println("Vehicle turned by " + delta.toDegrees + " to " + orientation.toDegrees)
+			log.debug(f"Vehicle turned by ${delta.toDegrees}%.2f° to ${orientation.toDegrees}%.2f°")
 
 		case RequestVehicleStatus() =>
 			sender() ! VehicleStatus(lastUpdateTime, new VehicleState(acceleration, speed, orientation), travelledDistance)
