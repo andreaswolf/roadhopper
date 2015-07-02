@@ -3,9 +3,13 @@ package info.andreaswolf.roadhopper.simulation
 import akka.actor.{ActorLogging, PoisonPill, Actor, ActorRef}
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case class Step(time: Int)
-case class StartSimulation(actors: List[ActorRef])
+case class StartSimulation()
+case class RegisterActors(actors: List[ActorRef])
+case class RegisterActor(actor: ActorRef)
+case class ActorsRegistered()
 case class StopSimulation()
 case class Start()
 case class ScheduleRequest(time: Int)
@@ -16,8 +20,8 @@ class SimulationTimerActor extends Actor with ActorLogging {
 
 	var started = false
 
-	var calledActors = List[ActorRef]()
-	var registeredActors = List[ActorRef]()
+	var calledActors: List[ActorRef] = List[ActorRef]()
+	var registeredActors: mutable.Buffer[ActorRef] = ArrayBuffer[ActorRef]()
 
 	val scheduledTimes = scala.collection.mutable.HashMap.empty[ActorRef, Int]
 
@@ -26,19 +30,31 @@ class SimulationTimerActor extends Actor with ActorLogging {
 		 * Starts the simulation. The list of actors is required because the timer needs to know for which components to
 		 * wait
 		 */
-		case StartSimulation(actors) =>
-			//println("Started simulation")
+		case StartSimulation() =>
+			log.debug("Starting simulation")
 
 			started = true
-			calledActors = actors
-			registeredActors = actors
-			actors.foreach((actor) => {
+			calledActors = registeredActors.toList
+			calledActors.foreach((actor) => {
 				actor ! Start()
 			})
 
+		case RegisterActors(actors) =>
+			registeredActors ++= actors
+			sender ! ActorsRegistered()
+
+		case RegisterActor(actor) =>
+			if (started) {
+				// TODO allow this; precondition is that we can get the actors to speed after they were added → decouple actor
+				// registration and system start
+				log.error("Simulation already started; cannot register actor anymore!")
+			}
+			log.debug("Registering actor " + actor)
+			registeredActors append actor
+
 		case StopSimulation() =>
 			if (started) {
-				//println("Stopping simulation")
+				log.info("Stopping simulation")
 				started = false
 				registeredActors.foreach((actor) => {
 					actor ! PoisonPill

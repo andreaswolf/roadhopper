@@ -1,12 +1,16 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor._
+import akka.pattern.ask
+import akka.util.Timeout
 import com.graphhopper.util.CmdArgs
 import com.graphhopper.util.shapes.GHPoint
 import info.andreaswolf.roadhopper.RoadHopper
 import info.andreaswolf.roadhopper.road.{Route, RouteFactory}
 
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 
 object ActorBasedSimulation extends App {
@@ -41,7 +45,10 @@ class ActorBasedSimulation(val route: Route) {
 	val driver = registerActor(Props(new DriverActor(timer, vehicle, journey)), "driver")
 	val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
 
-	def start() = timer ! StartSimulation(actorBuffer.toList)
+	implicit val timeout = Timeout(1 day)
+	Await.result(timer ? RegisterActors(actorBuffer.toList), 1 second)
+
+	def start() = timer ! StartSimulation()
 
 	def shutdown() = actorSystem.shutdown()
 
