@@ -10,19 +10,115 @@ initMap = function(selectLayer) {
 	layerControl.addOverlay(turnLines, "Turn lines");
 };
 
-drawRouteCallback = function (jsonData) {
-	var trafficLightIcon = L.icon({
-		iconUrl: './img/traffic_light.png',
-		iconAnchor: [12, 12]
-	});
-	var stopSignIcon = L.icon({
-		iconUrl: './img/stop_sign.png',
-		iconAnchor: [12, 12]
-	});
-	var towerNodeIcon = L.icon({
-		iconUrl: './img/tower_node.png',
-		iconAnchor: [12, 12]
-	});
+/**
+ * Converts an angle in radians to 0..360°.
+ */
+function toNormalizedDegrees(orientation) {
+	return ((orientation * 180 / Math.PI + 360) % 360).toFixed(1);
+}
+
+function toDegrees(radians) {
+	return ((radians * 180 / Math.PI) % 360).toFixed(1);
+}
+
+var graphHopperIntegration = {
+	drawRouteCallbacks: [],
+
+	drawRoute: function(jsonData) {
+		for (var i = 0; i < this.drawRouteCallbacks.length; ++i) {
+			var callback = this.drawRouteCallbacks[i];
+			var context = typeof(callback[1]) == "object" ? callback[1] : this;
+			callback[0].call(context, jsonData);
+		}
+	},
+
+	addRouteDrawCallback: function(callback, context) {
+		this.drawRouteCallbacks.push([callback, context]);
+	}
+};
+drawRouteCallback = function(jsonData) {
+	graphHopperIntegration.drawRoute(jsonData);
+};
+
+/**
+ * The actual Roadhopper object
+ */
+var roadhopper = {
+	/**
+	 * Icons to use on the map
+	 */
+	icons: {
+		trafficLight: L.icon({
+			iconUrl: './img/traffic_light.png',
+			iconAnchor: [12, 12]
+		}),
+		stopSign: L.icon({
+			iconUrl: './img/stop_sign.png',
+			iconAnchor: [12, 12]
+		}),
+		towerNode: L.icon({
+			iconUrl: './img/tower_node.png',
+			iconAnchor: [12, 12]
+		})
+	},
+
+	drawRoute: function(jsonData) {
+		routingLayer.clearLayers();
+		// re-add the start/end flags we removed earlier
+		flagAll();
+
+		var i = 0;
+		L.geoJson(jsonData["points"], {
+			filter: function(feature) {
+				return feature.type == 'LineString';
+			},
+			style: function (feature) {
+				return {
+					color: '#'+ (function lol(m,s,c){return s[m.floor(m.random() * s.length)] +
+							(c && lol(m,s,c-1));})(Math,'0123456789ABCDEF',4),
+					"weight": 5,
+					"opacity": 0.9
+				};
+			},
+			onEachFeature: function(feature, layer) {
+				if (feature.length) {
+					layer.bindPopup(i + " - Länge: " + feature.length.toFixed(0) + " - "
+						+ toNormalizedDegrees(feature.orientation) + "°"
+					);
+				}
+				++i;
+			}
+		}).addTo(routingLayer);
+	},
+
+	drawRoadSigns: function(jsonData) {
+		var t = 0;
+		var that = this;
+		L.geoJson(jsonData["points"], {
+			filter: function (feature) {
+				return feature.type == "Point";
+			},
+			pointToLayer: function(feature, latlng) {
+				function lcfirst(string) {
+					return string.charAt(0).toLowerCase() + string.slice(1);
+				}
+				return L.marker(latlng, {icon: that.icons[lcfirst(feature.info)]});
+			},
+			onEachFeature: function(feature, layer) {
+				if (feature.id) {
+					layer.bindPopup(i + " - " + t + " - Node ID: " + feature.id);
+				}
+				++i; ++t;
+			}
+		}).addTo(roadSignLayer);
+	}
+};
+
+graphHopperIntegration.addRouteDrawCallback(roadhopper.drawRoute, roadhopper);
+graphHopperIntegration.addRouteDrawCallback(roadhopper.drawRoadSigns, roadhopper);
+
+
+legacyDrawRoute = function (jsonData) {
 	var bendLeft = L.icon({
 		iconUrl: './img/bend_left.png',
 		iconAnchor: [12, 12]
@@ -32,22 +128,8 @@ drawRouteCallback = function (jsonData) {
 		iconAnchor: [12, 12]
 	});
 
-	// remove existing information
-	routingLayer.clearLayers();
-	roadSignLayer.clearLayers();
+	// remove existing information – the road sign layer should already have been cleared
 	turnLines.clearLayers();
-	// re-add the start/end flags we removed earlier
-	flagAll();
-
-	function getIconForTower(node) {
-		if (node["info"] == "TrafficLight") {
-			return trafficLightIcon;
-		} else if (node["info"] == "StopSign") {
-			return stopSignIcon;
-		} else {
-			return towerNodeIcon;
-		}
-	}
 
 	function getIconForBend(node) {
 		return node["direction"] == 0 ? bendLeft : bendRight;
@@ -163,55 +245,6 @@ drawRouteCallback = function (jsonData) {
 		}
 	}
 
-	/**
-	 * Converts an angle in radians to 0..360°.
-	 */
-	function toNormalizedDegrees(orientation) {
-		return ((orientation * 180 / Math.PI + 360) % 360).toFixed(1);
-	}
-
-	function toDegrees(radians) {
-		return ((radians * 180 / Math.PI) % 360).toFixed(1);
-	}
-
-	L.geoJson(jsonData["points"], {
-		filter: function(feature) {
-			return feature.type == 'LineString';
-		},
-		style: function (feature) {
-			return {
-				color: '#'+ (function lol(m,s,c){return s[m.floor(m.random() * s.length)] +
-						(c && lol(m,s,c-1));})(Math,'0123456789ABCDEF',4),
-				"weight": 5,
-				"opacity": 0.9
-			};
-		},
-		onEachFeature: function(feature, layer) {
-			if (feature.length) {
-				layer.bindPopup(i + " - Länge: " + feature.length.toFixed(0) + " - "
-					+ toNormalizedDegrees(feature.orientation) + "°"
-				);
-			}
-			++i;
-		}
-	}).addTo(routingLayer);
-
-	var t = 0;
-	L.geoJson(jsonData["points"], {
-		filter: function (feature) {
-			return feature.type == "Point";
-		},
-		pointToLayer: function(feature, latlng) {
-			return L.marker(latlng, {icon: getIconForTower(feature)});
-		},
-		onEachFeature: function(feature, layer) {
-			if (feature.id) {
-				layer.bindPopup(i + " - " + t + " - Node ID: " + feature.id);
-			}
-			++i; ++t;
-		}
-	}).addTo(roadSignLayer);
-
 	L.geoJson(jsonData["additionalInfo"], {
 		filter: function (feature) {
 			console.debug(feature);
@@ -233,6 +266,7 @@ drawRouteCallback = function (jsonData) {
 	}).addTo(roadSignLayer);
 
 };
+graphHopperIntegration.addRouteDrawCallback(legacyDrawRoute);
 
 var originalInit = GHRequest.prototype.init;
 GHRequest.prototype.init = function(params) {
