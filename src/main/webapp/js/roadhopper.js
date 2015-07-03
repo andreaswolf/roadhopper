@@ -219,9 +219,9 @@ drawRouteCallback = function (jsonData) {
 		},
 		pointToLayer: function(feature, latlng) {
 			var orientation = feature["initialOrientation"];
-			orientation += Math.PI / 2 * (feature.direction == 0 ? -1 : 1);
-			var latlng2 = calculateEndPoint(latlng, 10, orientation);
-			return L.marker(latlng2, {icon: getIconForBend(feature)});
+			orientation += Math.PI;
+			var iconPosition = calculateEndPoint(latlng, 5, orientation);
+			return L.marker(iconPosition, {icon: getIconForBend(feature)});
 		},
 		onEachFeature: function(feature, layer) {
 			layer.bindPopup("<strong>Road bend</strong><br />"
