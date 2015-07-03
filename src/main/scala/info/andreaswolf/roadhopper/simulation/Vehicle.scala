@@ -1,12 +1,14 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor.{ActorLogging, Actor, ActorRef}
+import com.graphhopper.util.shapes.GHPoint3D
 
 case class Accelerate(value: Double)
 case class Decelerate(value: Double)
 case class SetAcceleration(value: Double)
 case class RequestVehicleStatus()
 case class VehicleStatus(time: Int, state: VehicleState, travelledDistance: Double)
+case class UpdatePosition(position: GHPoint3D)
 
 /**
  * Lets the vehicle turn by the given angle (in radians)
@@ -24,6 +26,7 @@ class VehicleActor(val timer: ActorRef, val initialOrientation: Double = 0.0) ex
 	var speed = 0.0
 
 	var orientation = initialOrientation
+	var position: Option[GHPoint3D] = None
 
 	var lastUpdateTime = 0
 
@@ -58,7 +61,13 @@ class VehicleActor(val timer: ActorRef, val initialOrientation: Double = 0.0) ex
 			orientation += delta
 			log.debug(f"Vehicle turned by ${delta.toDegrees}%.2f° to ${orientation.toDegrees}%.2f°")
 
+		/**
+		 * Knowledge about the vehicle’s position is managed by the Journey
+		 */
+		case UpdatePosition(pos) =>
+			position = Some(pos)
+
 		case RequestVehicleStatus() =>
-			sender() ! VehicleStatus(lastUpdateTime, new VehicleState(acceleration, speed, orientation), travelledDistance)
+			sender() ! VehicleStatus(lastUpdateTime, new VehicleState(acceleration, speed, orientation, position), travelledDistance)
 	}
 }

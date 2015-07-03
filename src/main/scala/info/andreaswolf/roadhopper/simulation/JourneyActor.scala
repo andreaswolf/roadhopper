@@ -49,7 +49,9 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 					lengthToGet -= segment.length
 				}
 			})
-			sender ! new RoadAhead(currentTime, segmentsAhead.toList)
+			sender ! RoadAhead(currentTime, segmentsAhead.toList)
+			// inform the vehicle about its current position (= the start of the first road segment ahead)
+			vehicle ! UpdatePosition(segmentsAhead.head.start)
 
 		case VehicleStatus(time, state, travelledDistance) =>
 			if (remainingSegments.nonEmpty && travelledDistance > travelledUntilCurrentSegment + currentSegment.length) {
