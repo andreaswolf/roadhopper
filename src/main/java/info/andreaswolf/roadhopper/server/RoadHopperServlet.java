@@ -3,6 +3,7 @@ package info.andreaswolf.roadhopper.server;
 import com.graphhopper.GHRequest;
 import com.graphhopper.GHResponse;
 import com.graphhopper.http.GraphHopperServlet;
+import com.graphhopper.http.JsonWriter;
 import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.storage.NodeAccess;
 import com.graphhopper.storage.extensions.RoadSignEncoder;
@@ -118,7 +119,8 @@ public class RoadHopperServlet extends GraphHopperServlet
 			writeResponse(httpResponse, createGPXString(httpRequest, httpResponse, ghRsp));
 		} else
 		{
-			Map<String, Object> map = createJson(ghRsp,
+			JsonWriter writer = new JsonWriter(hopper);
+			Map<String, Object> map = writer.createJson(ghRsp,
 					calcPoints, pointsEncoded, enableElevation, enableInstructions);
 
 			if (hopperRoute != null)
@@ -143,21 +145,6 @@ public class RoadHopperServlet extends GraphHopperServlet
 			writeJson(httpRequest, httpResponse, new JSONObject(map));
 		}
 
-	}
-
-	@Override
-	protected Object createPoints(PointList points, boolean pointsEncoded, boolean includeElevation)
-	{
-		if (pointsEncoded)
-		{
-			return super.createPoints(points, pointsEncoded, includeElevation);
-		}
-		Map<String, Object> jsonPoints = new HashMap<String, Object>();
-
-		jsonPoints.put("type", "LineString");
-		jsonPoints.put("coordinates", points.toGeoJson(includeElevation));
-
-		return jsonPoints;
 	}
 
 
