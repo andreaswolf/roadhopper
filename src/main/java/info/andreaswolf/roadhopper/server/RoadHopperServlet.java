@@ -3,11 +3,9 @@ package info.andreaswolf.roadhopper.server;
 import com.graphhopper.GHRequest;
 import com.graphhopper.GHResponse;
 import com.graphhopper.http.GraphHopperServlet;
-import com.graphhopper.routing.Path;
 import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.storage.NodeAccess;
 import com.graphhopper.storage.extensions.RoadSignEncoder;
-import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.PointList;
 import com.graphhopper.util.StopWatch;
 import com.graphhopper.util.shapes.GHPoint;
@@ -16,7 +14,6 @@ import info.andreaswolf.roadhopper.RoadHopper;
 import info.andreaswolf.roadhopper.road.*;
 import org.json.JSONObject;
 import scala.collection.JavaConversions;
-import scala.collection.JavaConverters;
 
 import javax.inject.Inject;
 import javax.servlet.ServletException;
@@ -127,19 +124,8 @@ public class RoadHopperServlet extends GraphHopperServlet
 			if (hopperRoute != null)
 			{
 				GeoJsonEncoder encoder = new GeoJsonEncoder();
-				// The list of points/road segments that make up the route
-				List<Object> pointList = new ArrayList<Object>(10);
-				for (RoadSegment part : JavaConversions.asJavaCollection(hopperRoute.parts()))
-				{
-					HashMap<String, Object> partInfo = new HashMap<String, Object>();
-					encoder.encodeRoadSegment(partInfo, part, false);
+				List<Object> pointList = encoder.encodeRoute(hopperRoute);
 
-					if (!part.roadSign().isEmpty()) {
-						encoder.encodeRoadSign(pointList, part.roadSign().get());
-					}
-
-					pointList.add(partInfo);
-				}
 				map.put("points", pointList);
 
 				List<Object> additionalInfo = new ArrayList<Object>(10);
@@ -188,53 +174,6 @@ public class RoadHopperServlet extends GraphHopperServlet
 			encoder.encodeRoadBend(bendInfo, bend);
 
 			points.add(bendInfo);
-		}
-	}
-
-	protected class GeoJsonEncoder
-	{
-		public Object encodeEdge(EdgeIteratorState edge)
-		{
-			PointList points = edge.fetchWayGeometry(3);
-
-			// TODO use 3D parameter
-			return points.toGeoJson();
-		}
-
-		public void encodeRoadSegment(HashMap<String, Object> partInfo, RoadSegment segment, Boolean includeElevation)
-		{
-			ArrayList<Double[]> points = new ArrayList<Double[]>(2);
-
-			// NOTE: GeoJSON uses lon/lat coordinates instead of lat/lon!
-			points.add(segment.start().toGeoJson());
-			points.add(segment.end().toGeoJson());
-
-			partInfo.put("type", "LineString");
-			partInfo.put("coordinates", points);
-			partInfo.put("length", segment.length());
-			partInfo.put("orientation", segment.orientation());
-		}
-
-		public void encodeRoadSign(List<Object> pointList, RoadSign sign) {
-			HashMap<String, Object> partInfo = new HashMap<String, Object>();
-
-			partInfo.put("type", "Point");
-			partInfo.put("info", sign.typeInfo());
-			partInfo.put("id", sign.id());
-			partInfo.put("coordinates", sign.coordinates().toGeoJson());
-
-			pointList.add(partInfo);
-		}
-
-		public void encodeRoadBend(HashMap<String, Object> partInfo, RoadBend bend) {
-			partInfo.put("type", "Point");
-			partInfo.put("info", "RoadBend");
-			partInfo.put("length", bend.length());
-			partInfo.put("angle", bend.angle());
-			partInfo.put("radius", bend.radius());
-			partInfo.put("direction", bend.direction().id());
-			partInfo.put("initialOrientation", bend.firstSegment().orientation());
-			partInfo.put("coordinates", bend.firstSegment().start().toGeoJson());
 		}
 	}
 
