@@ -277,5 +277,5 @@ GHRequest.prototype.init = function(params) {
 };
 
 GHRequest.prototype.createURL = function () {
-	return this.createPath(this.host + "/roadhopper/route?" + this.createPointParams(false) + "&type=" + this.dataType + "&key=" + this.key);
+	return this.createPath(this.host + "/roadhopper/simulate?" + this.createPointParams(false) + "&type=" + this.dataType + "&key=" + this.key);
 };
