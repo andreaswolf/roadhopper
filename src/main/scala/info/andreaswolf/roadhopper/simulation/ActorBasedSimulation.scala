@@ -46,7 +46,6 @@ class ActorBasedSimulation(val route: Route) {
 	val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
 
 	implicit val timeout = Timeout(1 day)
-	Await.result(timer ? RegisterActors(actorBuffer.toList), 1 second)
 
 	def start() = timer ! StartSimulation()
 
@@ -57,6 +56,8 @@ class ActorBasedSimulation(val route: Route) {
 		ActorBasedSimulation.timeBus.subscribe(actorRef, "time.step")
 
 		actorBuffer append actorRef
+		implicit val timeout = Timeout(1 day)
+		Await.result(timer ? RegisterActor(actorRef), 1 second)
 
 		actorRef
 	}

@@ -51,6 +51,7 @@ class SimulationTimerActor extends Actor with ActorLogging {
 			}
 			log.debug("Registering actor " + actor)
 			registeredActors append actor
+			sender ! ActorsRegistered()
 
 		case StopSimulation() =>
 			if (started) {
