@@ -11,8 +11,8 @@ case class RoadAhead(time: Int, roadParts: List[RoadSegment])
 
 class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route) extends Actor with ActorLogging {
 
-	var remainingSegments = route.parts
-	var currentSegment = remainingSegments.head
+	var remainingSegments = route.parts.tail
+	var currentSegment = route.parts.head
 	var travelledUntilCurrentSegment = 0.0
 
 	var currentTime = 0
@@ -24,13 +24,7 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 
 		case Step(time) =>
 			currentTime = time
-			if (remainingSegments.nonEmpty) {
-				vehicle ! RequestVehicleStatus()
-			} else {
-				log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
-				timer ! Pass
-				context.system.shutdown
-			}
+			vehicle ! RequestVehicleStatus()
 
 		case RequestRoadAhead(position) =>
 			// TODO dynamically calculate the base distance to get (e.g. based on speed) or get it passed with the request
@@ -53,22 +47,32 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 			// inform the vehicle about its current position (= the start of the first road segment ahead)
 			vehicle ! UpdatePosition(segmentsAhead.head.start)
 
+		// TODO move tracking the travelled distance here, as the vehicle should not need to be concerned with it
 		case VehicleStatus(time, state, travelledDistance) =>
-			if (remainingSegments.nonEmpty && travelledDistance > travelledUntilCurrentSegment + currentSegment.length) {
-				// TODO this brings a slight inaccuracy into the calculation, which will lead to longer travelling
-				// distances. The difference is negligible for long segments, but for many consecutive short segments,
-				// we might get a larger offset
-				travelledUntilCurrentSegment = travelledDistance
-
-				currentSegment = remainingSegments.head
-				remainingSegments = remainingSegments.tail
+			// we are beyond the current segment’s end
+			if (travelledDistance > travelledUntilCurrentSegment + currentSegment.length) {
+				// there are more segments ahead, so just continue with the next one
 				if (remainingSegments.nonEmpty) {
-					val nextSegment = remainingSegments.head
+					// TODO this brings a slight inaccuracy into the calculation, which will lead to longer travelling
+					// distances. The difference is negligible for long segments, but for many consecutive short segments,
+					// we might get a larger offset
+					travelledUntilCurrentSegment = travelledDistance
 
-					vehicle ! Turn(currentSegment.calculateNecessaryTurn(nextSegment))
+					currentSegment = remainingSegments.head
+					remainingSegments = remainingSegments.tail
+					if (remainingSegments.nonEmpty) {
+						val nextSegment = remainingSegments.head
+
+						// instruct the vehicle to turn to the new segment
+						vehicle ! Turn(currentSegment.calculateNecessaryTurn(nextSegment))
+					}
+					log.debug("RoadSegment ended, new segment length: " + currentSegment.length.round)
+					log.debug("Remaining segments: " + remainingSegments.length)
+				} else {
+					log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
+					timer ! Pass
+					context.system.shutdown
 				}
-				log.debug("RoadSegment ended, new segment length: " + currentSegment.length.round)
-				log.debug("Remaining segments: " + remainingSegments.length)
 			}
 			timer ! ScheduleRequest(currentTime + 10)
 
