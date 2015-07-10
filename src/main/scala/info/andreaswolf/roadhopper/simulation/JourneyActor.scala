@@ -76,14 +76,14 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 			// we might get a larger offset
 			travelledUntilCurrentSegment = position
 
-			currentSegment = remainingSegments.head
-			remainingSegments = remainingSegments.tail
-			if (remainingSegments.nonEmpty) {
-				val nextSegment = remainingSegments.head
+			val nextSegment = remainingSegments.head
 
-				// instruct the vehicle to turn to the new segment
-				vehicle ! Turn(currentSegment.calculateNecessaryTurn(nextSegment))
-			}
+			// instruct the vehicle to turn to the new segment
+			vehicle ! Turn(currentSegment.calculateNecessaryTurn(nextSegment))
+
+			currentSegment = nextSegment
+			remainingSegments = remainingSegments.tail
+
 			log.debug("RoadSegment ended, new segment length: " + currentSegment.length.round)
 			log.debug("Remaining segments: " + remainingSegments.length)
 		} else {
