@@ -64,30 +64,32 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 	 * @param position The current position on the journey, i.e. along the road to travel
 	 */
 	def checkCurrentSegment(position: Double): Unit = {
-		// we are beyond the current segment’s end
-		if (position > travelledUntilCurrentSegment + currentSegment.length) {
-			// there are more segments ahead, so just continue with the next one
+		// are we beyond the current segment’s end?
+		if (position <= travelledUntilCurrentSegment + currentSegment.length) {
+			return
+		}
+
+		// there are more segments ahead, so just continue with the next one
+		if (remainingSegments.nonEmpty) {
+			// TODO this brings a slight inaccuracy into the calculation, which will lead to longer travelling
+			// distances. The difference is negligible for long segments, but for many consecutive short segments,
+			// we might get a larger offset
+			travelledUntilCurrentSegment = position
+
+			currentSegment = remainingSegments.head
+			remainingSegments = remainingSegments.tail
 			if (remainingSegments.nonEmpty) {
-				// TODO this brings a slight inaccuracy into the calculation, which will lead to longer travelling
-				// distances. The difference is negligible for long segments, but for many consecutive short segments,
-				// we might get a larger offset
-				travelledUntilCurrentSegment = position
+				val nextSegment = remainingSegments.head
 
-				currentSegment = remainingSegments.head
-				remainingSegments = remainingSegments.tail
-				if (remainingSegments.nonEmpty) {
-					val nextSegment = remainingSegments.head
-
-					// instruct the vehicle to turn to the new segment
-					vehicle ! Turn(currentSegment.calculateNecessaryTurn(nextSegment))
-				}
-				log.debug("RoadSegment ended, new segment length: " + currentSegment.length.round)
-				log.debug("Remaining segments: " + remainingSegments.length)
-			} else {
-				log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
-				timer ! Pass
-				context.system.shutdown
+				// instruct the vehicle to turn to the new segment
+				vehicle ! Turn(currentSegment.calculateNecessaryTurn(nextSegment))
 			}
+			log.debug("RoadSegment ended, new segment length: " + currentSegment.length.round)
+			log.debug("Remaining segments: " + remainingSegments.length)
+		} else {
+			log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
+			timer ! Pass
+			context.system.shutdown
 		}
 	}
 }
