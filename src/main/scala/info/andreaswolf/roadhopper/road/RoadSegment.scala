@@ -34,8 +34,8 @@ object RoadSegment {
 	 * @return
 	 */
 	def fromExisting(offset: Double, base: RoadSegment) = {
-		if (offset >= base.length) {
-			throw new IllegalArgumentException("Offset must be within the base segment’s length")
+		if (offset > base.length) {
+			throw new IllegalArgumentException(f"Offset must be within the base segment’s length: $offset vs. ${base.length}")
 		}
 
 		// see http://www.movable-type.co.uk/scripts/latlong.html

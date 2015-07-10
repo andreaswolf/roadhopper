@@ -27,7 +27,10 @@ class JourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 			vehicle ! RequestVehicleStatus()
 
 		case RequestRoadAhead(position) =>
-			// TODO dynamically calculate the base distance to get (e.g. based on speed) or get it passed with the request
+			// TODO dynamically calculate the distance to get (e.g. based on speed) or get it passed with the request
+			// check if we have probably advanced past the current segment
+			checkCurrentSegment(position)
+
 			// make sure we only get segments after the current segment
 			val remainingOnCurrentSegment = currentSegment.length - (position - travelledUntilCurrentSegment)
 			// if the length to get is 0, we will be on the current segment for all of the look-ahead distance

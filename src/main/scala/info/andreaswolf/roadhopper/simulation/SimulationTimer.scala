@@ -63,7 +63,9 @@ class SimulationTimerActor extends Actor with ActorLogging {
 			}
 
 		case ScheduleRequest(time) =>
-			require(currentTime < time, "Can only schedule for the future")
+			require(currentTime < time,
+				f"Can only schedule for the future (current time: $currentTime, scheduled: $time); request came from ${sender.path}"
+			)
 			//println(calledActors.size + " actors still called; scheduling " + sender().path + " for " + time)
 			scheduledTimes.update(sender(), time)
 			unscheduleActor(sender())
