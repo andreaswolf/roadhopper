@@ -1,12 +1,18 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.Actor
+import akka.actor.{ActorRef, Actor}
 import akka.util.Timeout
-
-import info.andreaswolf.roadhopper.{Start, StepAct, StepUpdate}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+
+
+case class Simulate()
+case class Start()
+case class RegisterActor(actor: ActorRef)
+case class StepUpdate(time: Int)
+case class StepAct(time: Int)
+case class Pass()
 
 
 /**

@@ -14,10 +14,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-case class Simulate()
-case class StepUpdate(time: Int)
-case class StepAct(time: Int)
-
 
 class ExtensionComponent extends SimulationActor {
 
@@ -60,7 +56,7 @@ class Component(val timer: ActorRef) extends Actor {
 	def receive = {
 		case Start() =>
 			val originalSender = sender()
-			timer ? ScheduleRequest(50) andThen { case x =>
+			timer ? ScheduleStep(50, self) andThen { case x =>
 				println("Component::Start() finished")
 				originalSender ! true
 			}
@@ -89,7 +85,7 @@ class Component(val timer: ActorRef) extends Actor {
 						println("Answer for " + time)
 					case Success(x) => println(x)
 				},
-				timer ? ScheduleRequest(time + 100)
+				timer ? ScheduleStep(time + 100, self)
 			) andThen {
 				case x =>
 					println(f"Scheduling request of ${self.path} passed")

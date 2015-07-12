@@ -3,20 +3,28 @@ package info.andreaswolf.roadhopper.simulation
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
-import info.andreaswolf.roadhopper._
 
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
+case class ScheduleStep(time: Int, actor: ActorRef)
+
+/**
+ * A simulation timer that breaks each step into two phases: an update and an act phase. In the update phase, each
+ * component should update its internal state, however it might have changed since the last step.
+ * In the act phase, the components can ask each other for their state and react to state changes, e.g. by adjusting
+ * their state and future behaviour.
+ */
 class TwoStepSimulationTimer extends Actor {
 
-	var time = 0
-	var scheduledTime = 0
+	var currentTime = 0
 
 	val actors = new ListBuffer[ActorRef]()
 
-	println("Creating timer")
+	val timeSchedule = new mutable.HashMap[Int, ListBuffer[ActorRef]]()
+
 	implicit val timeout = Timeout(60 seconds)
 
 	/**
@@ -49,11 +57,13 @@ class TwoStepSimulationTimer extends Actor {
 	 * ordering.
 	 */
 	def doStep(): Unit = {
-		println("doUpdateStep()")
-		require(time < scheduledTime, "Scheduled time must be in the future")
-		time = scheduledTime
+		println("doStep()")
 
-		println(f"======= Advancing time to $time")
+		val nextTime = timeSchedule.keys.min
+		require(currentTime < nextTime, "Scheduled time must be in the future")
+		currentTime = nextTime
+
+		println(f"======= Advancing time to $currentTime")
 
 		/**
 		 * The main method responsible for performing a step:
@@ -66,9 +76,12 @@ class TwoStepSimulationTimer extends Actor {
 			implicit val timeout = Timeout(60 seconds)
 			import context.dispatcher
 
+			// we can be sure that there is a list, thus we can use .get
+			val actorsToCall = timeSchedule.remove(nextTime).get
+
 			val actorFutures = new ListBuffer[Future[Any]]()
-			actors.foreach(actor => {
-				actorFutures.append(actor ? StepUpdate(time) andThen { case x => println("StepUpdate: Future finished") })
+			actorsToCall.foreach(actor => {
+				actorFutures.append(actor ? StepUpdate(currentTime) andThen { case x => println("StepUpdate: Future finished") })
 			})
 			// wait for the result of the StepUpdate messages ...
 			Future.sequence(actorFutures.toList).andThen({
@@ -76,8 +89,8 @@ class TwoStepSimulationTimer extends Actor {
 				case updateResult =>
 					println("===== Update done, starting Act")
 					actorFutures.clear()
-					actors.foreach(actor => {
-						actorFutures.append(actor ? StepAct(time) andThen { case x => println("StepAct: Future finished") })
+					actorsToCall.foreach(actor => {
+						actorFutures.append(actor ? StepAct(currentTime) andThen { case x => println("StepAct: Future finished") })
 					})
 					// wait for the result of the StepAct messages
 					// TODO properly check for an error here -> transform this block to this:
@@ -103,9 +116,9 @@ class TwoStepSimulationTimer extends Actor {
 		/**
 		 * Used by actors to schedule their invocation at some point in the future.
 		 */
-		case ScheduleRequest(time: Int) =>
-			println(f"Scheduling for $time by ${sender().path}")
-			this.scheduledTime = time
+		case ScheduleStep(time: Int, target: ActorRef) =>
+			val alreadyScheduled = timeSchedule.getOrElseUpdate(time, new ListBuffer[ActorRef]())
+			alreadyScheduled append target
 			sender ! true
 
 		case Pass() => println("Pass()")
