@@ -78,35 +78,47 @@ class Timer extends Actor {
 	 * ordering.
 	 */
 	def doStep(): Unit = {
-		implicit val timeout = Timeout(60 seconds)
-		import context.dispatcher
-
 		println("doUpdateStep()")
 		require(time < scheduledTime, "Scheduled time must be in the future")
 		time = scheduledTime
 
 		println(f"======= Advancing time to $time")
-		val actorFutures = new ListBuffer[Future[Any]]()
-		actors.foreach(actor => {
-			actorFutures.append(actor ? StepUpdate(time) andThen {case x => println("StepUpdate: Future finished")})
-		})
-		// wait for the result of the StepUpdate messages ...
-		Future.sequence(actorFutures.toList).andThen({
-			// ... and then run the StepAct messages
-			case updateResult =>
-				println("===== Update done, starting Act")
-				actorFutures.clear()
-				actors.foreach(actor => {
-					actorFutures.append(actor ? StepAct(time) andThen {case x => println("StepAct: Future finished")})
-				})
-				// wait for the result of the StepAct messages
-				// TODO properly check for an error here -> transform this block to this:
-				//   andThen{ case Success(x) => … case Failure(x) => }
-				Future.sequence(actorFutures.toList).onSuccess({
-					case actResult if time < 1000 => this.doStep()
-					case actResult => context.system.shutdown()
-				})
-		})
+
+		/**
+		 * The main method responsible for performing a step:
+		 *
+		 * First sends a [[StepUpdate]] to every actor, waits for their results and then sends [[StepAct]] to every actor.
+		 * For each of these two steps, one [[Future]] is constructed with [[Future.sequence()]] that holds all the
+		 * message [[Future]]s.
+		 */
+		def callActors(): Unit = {
+			implicit val timeout = Timeout(60 seconds)
+			import context.dispatcher
+
+			val actorFutures = new ListBuffer[Future[Any]]()
+			actors.foreach(actor => {
+				actorFutures.append(actor ? StepUpdate(time) andThen { case x => println("StepUpdate: Future finished") })
+			})
+			// wait for the result of the StepUpdate messages ...
+			Future.sequence(actorFutures.toList).andThen({
+				// ... and then run the StepAct messages
+				case updateResult =>
+					println("===== Update done, starting Act")
+					actorFutures.clear()
+					actors.foreach(actor => {
+						actorFutures.append(actor ? StepAct(time) andThen { case x => println("StepAct: Future finished") })
+					})
+					// wait for the result of the StepAct messages
+					// TODO properly check for an error here -> transform this block to this:
+					//   andThen{ case Success(x) => … case Failure(x) => }
+					Future.sequence(actorFutures.toList).onSuccess({
+						case actResult if time < 1000 => this.doStep()
+						case actResult => context.system.shutdown()
+					})
+			})
+		}
+
+		callActors()
 	}
 
 	def receive = {
