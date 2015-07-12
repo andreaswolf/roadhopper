@@ -14,31 +14,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-/**
- * This simulation coordinates the single steps with the help of futures, requiring every actor to explicitly respond
- * to a Step() message. Only after this response has been received from all actors, the current step is regarded as
- * being completed.
- */
-object FutureBasedSimulation extends App {
-	val actorSystem = ActorSystem.create("futures")
-
-	val timer = actorSystem.actorOf(Props(new TwoStepSimulationTimer), "timer")
-
-	val component = actorSystem.actorOf(Props(new Component(timer)), "component")
-	val extensionComponent = actorSystem.actorOf(Props(new ExtensionComponent), "extension")
-
-	implicit val ec: ExecutionContext = actorSystem.dispatcher
-	implicit val timeout = Timeout(10 seconds)
-	Future.sequence(List(
-		timer ? RegisterActor(component),
-		timer ? RegisterActor(extensionComponent)
-	)) onSuccess {
-		case x =>
-			println("Starting")
-			timer ! Simulate()
-	}
-}
-
 case class Simulate()
 case class StepUpdate(time: Int)
 case class StepAct(time: Int)
