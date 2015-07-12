@@ -77,7 +77,7 @@ class TwoStepSimulationTimer extends Actor {
 			import context.dispatcher
 
 			// we can be sure that there is a list, thus we can use .get
-			val actorsToCall = timeSchedule.remove(nextTime).get
+			val actorsToCall = timeSchedule.remove(nextTime).get.distinct
 
 			val actorFutures = new ListBuffer[Future[Any]]()
 			actorsToCall.foreach(actor => {
