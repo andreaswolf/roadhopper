@@ -64,7 +64,6 @@ class Timer extends Actor {
 		Future.sequence(actorFutures.toList).andThen({
 			// let the loop roll
 			case x =>
-				Thread.sleep(20)
 				println("starting loop")
 				doStep()
 		})
@@ -95,6 +94,7 @@ class Timer extends Actor {
 		Future.sequence(actorFutures.toList).andThen({
 			// ... and then run the StepAct messages
 			case updateResult =>
+				println("===== Update done, starting Act")
 				actorFutures.clear()
 				actors.foreach(actor => {
 					actorFutures.append(actor ? StepAct(time) andThen {case x => println("StepAct: Future finished")})
@@ -192,10 +192,35 @@ trait SimulationActor extends Actor {
 	def registerReceiver(receive: Actor.Receive) { _receive = receive :: _receive }
 	def receive =  _receive reduce {_ orElse _}
 
+	/**
+	 * Handler for Start() messages.
+	 *
+	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+	 * returned)
+	 */
 	def start()(implicit exec: ExecutionContext): Future[Any] = Future.successful()
 
+	/**
+	 * Handler for StepUpdate() messages.
+	 *
+	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+	 * returned)
+	 *
+	 * @param time The current simulation time in milliseconds
+	 */
 	def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future.successful()
 
+	/**
+	 * Handler for StepAct() messages.
+	 *
+	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+	 * returned)
+	 *
+	 * @param time The current simulation time in milliseconds
+	 */
 	def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future.successful()
 }
 
@@ -247,17 +272,23 @@ class Component(val timer: ActorRef) extends Actor {
 
 		case StepUpdate(time) =>
 			println("Component::StepUpdate")
-			Thread.sleep(50)
+			println("Sleeping 1000ms…")
+			Thread.sleep(1000)
+			println("1000ms done")
 			println("Component: Updating time to " + time)
 			sender ! true
 
 		case StepAct(time) =>
 			println("Component::StepAct")
-			Thread.sleep(2000)
+			println("Sleeping 500…")
+			Thread.sleep(500)
+			println("500ms done")
 			println("Component: Got time " + time)
 			val originalSender = sender()
 			Future sequence List(
-				// ask another component a question
+				// ask another component a question => we need to directly handle the result inline; this could also be moved
+				// to a method, but we cannot use this actor’s receive method, otherwise we cannot use sender() to send the
+				// response in subordinate.
 				subordinate ? Question(time) andThen {
 					case Success(Answer(x)) =>
 						println("Answer for " + time)
@@ -284,10 +315,8 @@ class Subordinate(val component: ActorRef) extends Actor {
 
 	def receive = {
 		case Question(time) =>
-			// we cannot use sender, as a message passed to the sender will be treated as the acknowledgement of the ask()
-			// request.
-			sender ! Answer(time)
 			println(f"Subordinate: $time")
+			sender ! Answer(time)
 
 	}
 }
