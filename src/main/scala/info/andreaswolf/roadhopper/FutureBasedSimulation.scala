@@ -8,11 +8,11 @@ package info.andreaswolf.roadhopper
 import akka.actor.{ActorRef, Props, ActorSystem, Actor}
 import akka.pattern.ask
 import akka.util.Timeout
+import info.andreaswolf.roadhopper.simulation._
 
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.{ExecutionContext, Await, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 /**
  * This simulation coordinates the single steps with the help of futures, requiring every actor to explicitly respond
@@ -22,230 +22,27 @@ import scala.util.Success
 object FutureBasedSimulation extends App {
 	val actorSystem = ActorSystem.create("futures")
 
-	val timer = actorSystem.actorOf(Props(new Timer), "timer")
+	val timer = actorSystem.actorOf(Props(new TwoStepSimulationTimer), "timer")
 
 	val component = actorSystem.actorOf(Props(new Component(timer)), "component")
 	val extensionComponent = actorSystem.actorOf(Props(new ExtensionComponent), "extension")
 
+	implicit val ec: ExecutionContext = actorSystem.dispatcher
 	implicit val timeout = Timeout(10 seconds)
-	timer ? RegisterActor(component)
-	timer ? RegisterActor(extensionComponent)
-	timer ! Simulate()
+	Future.sequence(List(
+		timer ? RegisterActor(component),
+		timer ? RegisterActor(extensionComponent)
+	)) onSuccess {
+		case x =>
+			println("Starting")
+			timer ! Simulate()
+	}
 }
 
 case class Simulate()
-case class Start()
-case class RegisterActor(actor: ActorRef)
 case class StepUpdate(time: Int)
 case class StepAct(time: Int)
-case class ScheduleRequest(time: Int)
-case class Pass()
 
-class Timer extends Actor {
-
-	var time = 0
-	var scheduledTime = 0
-
-	val actors = new ListBuffer[ActorRef]()
-
-	println("Creating timer")
-	implicit val timeout = Timeout(60 seconds)
-
-	def start() = {
-		import context.dispatcher
-
-		println("Starting")
-
-		// initialize all actors by sending them a Start() message and wait for all results
-		val actorFutures = new ListBuffer[Future[Any]]()
-		actors.foreach(actor => {
-			actorFutures.append(actor ? Start())
-		})
-		Future.sequence(actorFutures.toList).andThen({
-			// let the loop roll
-			case x =>
-				println("starting loop")
-				doStep()
-		})
-		println("start(): done")
-	}
-
-	/**
-	 * Implements a two-step scheduling process: first an UpdateStep() is sent to all scheduled actors, then
-	 * an ActStep is sent.
-	 *
-	 * For each step, the result of all messages is awaited before continuing, making the simulation run with proper
-	 * ordering.
-	 */
-	def doStep(): Unit = {
-		println("doUpdateStep()")
-		require(time < scheduledTime, "Scheduled time must be in the future")
-		time = scheduledTime
-
-		println(f"======= Advancing time to $time")
-
-		/**
-		 * The main method responsible for performing a step:
-		 *
-		 * First sends a [[StepUpdate]] to every actor, waits for their results and then sends [[StepAct]] to every actor.
-		 * For each of these two steps, one [[Future]] is constructed with [[Future.sequence()]] that holds all the
-		 * message [[Future]]s.
-		 */
-		def callActors(): Unit = {
-			implicit val timeout = Timeout(60 seconds)
-			import context.dispatcher
-
-			val actorFutures = new ListBuffer[Future[Any]]()
-			actors.foreach(actor => {
-				actorFutures.append(actor ? StepUpdate(time) andThen { case x => println("StepUpdate: Future finished") })
-			})
-			// wait for the result of the StepUpdate messages ...
-			Future.sequence(actorFutures.toList).andThen({
-				// ... and then run the StepAct messages
-				case updateResult =>
-					println("===== Update done, starting Act")
-					actorFutures.clear()
-					actors.foreach(actor => {
-						actorFutures.append(actor ? StepAct(time) andThen { case x => println("StepAct: Future finished") })
-					})
-					// wait for the result of the StepAct messages
-					// TODO properly check for an error here -> transform this block to this:
-					//   andThen{ case Success(x) => … case Failure(x) => }
-					Future.sequence(actorFutures.toList).onSuccess({
-						case actResult if time < 1000 => this.doStep()
-						case actResult => context.system.shutdown()
-					})
-			})
-		}
-
-		callActors()
-	}
-
-	def receive = {
-		case RegisterActor(actor) =>
-			actors append actor
-
-		case Simulate() =>
-			start()
-
-		case ScheduleRequest(time: Int) =>
-			println(f"Scheduling for $time by ${sender().path}")
-			this.scheduledTime = time
-			sender ! true
-
-		case Pass() => println("Pass()")
-	}
-
-}
-
-/**
- * This is an extensible simulation actor that holds standard behaviour common to all timed simulation actors:
- * it reacts to Start(), StepUpdate() and StepAct() messages and makes that responses to the messages are not sent
- * before all processing has been done.
- *
- * Processing of messages is delegated to handler functions that can (and should) be overridden in classes using this
- * trait.
- *
- * See https://stackoverflow.com/a/8683439/3987705 for the inspiration for this trait.
- */
-trait SimulationActor extends Actor {
-	implicit val timeout = Timeout(60 seconds)
-	import context.dispatcher
-
-	/**
-	 * The list of message handlers. By default, it contains handlers for the basic simulation messages Start(),
-	 * StepUpdate() and StepAct()
-	 *
-	 * See [[registerReceiver()]] for more information on how to add your own handlers.
-	 *
-	 * WARNING: it is undefined in which order the case statements from the different Receive instances will be invoked
-	 * (as the list is not ordered). If we need to explicitly override any of the cases defined here, we need to convert
-	 * this List() into something with explicit ordering.
-	 */
-	var _receive : List[Receive] = List(
-		{
-			case Start() =>
-				// we need to store sender() here as sender() will point to the dead letter mailbox when andThen() is called.
-				// TODO find out why this is the case
-				val originalSender = sender()
-				start() andThen {
-					case x =>
-						println("Start done for " + self.path)
-						println(sender())
-						println(originalSender)
-						originalSender ! true
-				}
-
-			case StepUpdate(time) =>
-				val originalSender = sender()
-				stepUpdate(time) andThen {
-					case x =>
-						println(f"StepUpdate done for " + self.path)
-						originalSender ! true
-				}
-
-			case StepAct(time) =>
-				val originalSender = sender()
-				stepAct(time) andThen {
-					case x =>
-						println(f"StepAct done for " + self.path)
-						originalSender ! true
-				}
-		}
-	)
-
-	/**
-	 * Registers a new receiver. Call with a partial function to make the actor accept additional types of messages.
-	 * <p/>
-	 * Example:
-	 * <p/>
-	 * <pre>
-	 * registerReceiver {
-	 *   case MyMessage() =>
-	 *     // code to handle MyMessage()
-	 * }</pre>
-	 *
-	 * WARNING the execution order of the receive functions is currently undefined. If you need to override an existing
-	 *         message handler, make sure to fix this issue first!
-	 */
-	def registerReceiver(receive: Actor.Receive) { _receive = receive :: _receive }
-
-	/**
-	 * The receive function, must not be overridden. Instead, register your own receiver function with [[registerReceiver()]]
-	 */
-	final def receive =  _receive reduce {_ orElse _}
-
-	/**
-	 * Handler for Start() messages.
-	 *
-	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
-	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
-	 * returned)
-	 */
-	def start()(implicit exec: ExecutionContext): Future[Any] = Future.successful()
-
-	/**
-	 * Handler for StepUpdate() messages.
-	 *
-	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
-	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
-	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
-	 */
-	def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future.successful()
-
-	/**
-	 * Handler for StepAct() messages.
-	 *
-	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
-	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
-	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
-	 */
-	def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future.successful()
-}
 
 class ExtensionComponent extends SimulationActor {
 
