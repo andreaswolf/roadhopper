@@ -1,19 +1,7 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor.{ActorLogging, Actor, ActorRef}
-import info.andreaswolf.roadhopper.road.{RoadBendEvaluator, RoadSegment}
-
-/**
- * A vehicle driver, responsible for steering the vehicle.
- */
-class Driver {
-
-	def changeVehicleInput(currentStep: SimulationStep): DriverInput = {
-		// TODO adjust steering wheel
-		new DriverInput(0.0)
-	}
-
-}
+import info.andreaswolf.roadhopper.road.RoadBendEvaluator
 
 
 class DriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: ActorRef) extends Actor with ActorLogging {
