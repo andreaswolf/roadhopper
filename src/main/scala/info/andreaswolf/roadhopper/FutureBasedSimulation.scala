@@ -134,15 +134,22 @@ class Timer extends Actor {
  * Processing of messages is delegated to handler functions that can (and should) be overridden in classes using this
  * trait.
  *
- * See https://stackoverflow.com/a/8683439/3987705
+ * See https://stackoverflow.com/a/8683439/3987705 for the inspiration for this trait.
  */
 trait SimulationActor extends Actor {
 	implicit val timeout = Timeout(60 seconds)
 	import context.dispatcher
 
-	// WARNING: it is undefined in which order the case statements from the different Receive instances will be invoked
-	// (as the list is not ordered). If we need to explicitly override any of the cases defined here, we need to convert
-	// this List() into something with explicit ordering.
+	/**
+	 * The list of message handlers. By default, it contains handlers for the basic simulation messages Start(),
+	 * StepUpdate() and StepAct()
+	 *
+	 * See [[registerReceiver()]] for more information on how to add your own handlers.
+	 *
+	 * WARNING: it is undefined in which order the case statements from the different Receive instances will be invoked
+	 * (as the list is not ordered). If we need to explicitly override any of the cases defined here, we need to convert
+	 * this List() into something with explicit ordering.
+	 */
 	var _receive : List[Receive] = List(
 		{
 			case Start() =>
@@ -190,7 +197,11 @@ trait SimulationActor extends Actor {
 	 *         message handler, make sure to fix this issue first!
 	 */
 	def registerReceiver(receive: Actor.Receive) { _receive = receive :: _receive }
-	def receive =  _receive reduce {_ orElse _}
+
+	/**
+	 * The receive function, must not be overridden. Instead, register your own receiver function with [[registerReceiver()]]
+	 */
+	final def receive =  _receive reduce {_ orElse _}
 
 	/**
 	 * Handler for Start() messages.
