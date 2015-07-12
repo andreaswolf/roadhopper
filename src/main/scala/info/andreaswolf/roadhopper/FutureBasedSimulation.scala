@@ -1,23 +1,35 @@
 package info.andreaswolf.roadhopper
 
+/**
+ * This file is a playground to test new ideas for the simulation without the hassle of firing up a complete
+ * GraphHopper instance etc.
+ */
+
 import akka.actor.{ActorRef, Props, ActorSystem, Actor}
 import akka.pattern.ask
 import akka.util.Timeout
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ExecutionContext, Await, Future}
 import scala.concurrent.duration._
 import scala.util.Success
 
+/**
+ * This simulation coordinates the single steps with the help of futures, requiring every actor to explicitly respond
+ * to a Step() message. Only after this response has been received from all actors, the current step is regarded as
+ * being completed.
+ */
 object FutureBasedSimulation extends App {
 	val actorSystem = ActorSystem.create("futures")
 
 	val timer = actorSystem.actorOf(Props(new Timer), "timer")
 
 	val component = actorSystem.actorOf(Props(new Component(timer)), "component")
+	val extensionComponent = actorSystem.actorOf(Props(new ExtensionComponent), "extension")
 
 	implicit val timeout = Timeout(10 seconds)
 	timer ? RegisterActor(component)
+	timer ? RegisterActor(extensionComponent)
 	timer ! Simulate()
 }
 
@@ -117,15 +129,56 @@ class Timer extends Actor {
 /**
  * See https://stackoverflow.com/a/8683439/3987705
  */
-/*trait SimulationActor extends Actor {
+trait SimulationActor extends Actor {
+	implicit val timeout = Timeout(60 seconds)
+	import context.dispatcher
+
 	var _receive : List[Receive] = List(
-		new Receive {
-			case
+		{
+			case StepUpdate(time) =>
+				val originalSender = sender()
+				doUpdate(time) andThen {
+					case x =>
+						println(f"StepUpdate done for " + self.path)
+						originalSender ! true
+				}
+
+			case StepAct(time) =>
+				val originalSender = sender()
+				doAct(time) andThen {
+					case x =>
+						println(f"StepUpdate done for " + self.path)
+						originalSender ! true
+				}
 		}
 	)
 	def receiver(receive: Actor.Receive) { _receive = receive :: _receive }
 	def receive =  _receive reduce {_ orElse _}
-}*/
+
+	def doUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any]
+
+	def doAct(time: Int)(implicit exec: ExecutionContext): Future[Any]
+}
+
+class ExtensionComponent extends SimulationActor {
+	receiver({
+		case Start() =>
+			println("starting")
+			sender ! true
+	});
+
+	override def doUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+		Future {
+			println("foo")
+		}
+	}
+
+	override def doAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+		Future {
+			println("bar")
+		}
+	}
+}
 
 class AnotherComponent extends Actor {
 
