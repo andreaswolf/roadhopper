@@ -14,8 +14,6 @@ import scala.concurrent.duration._
 
 
 object ActorBasedSimulation extends App {
-	var timeBus = new TimedEventBus
-
 	override def main(args: Array[String]): Unit = {
 		val cmdArgs = CmdArgs.read(args)
 		val roadHopperInstance = new RoadHopper
@@ -34,8 +32,6 @@ object ActorBasedSimulation extends App {
 class ActorBasedSimulation(val route: Route) {
 	val actorSystem = ActorSystem.create("roadhopper")
 
-	ActorBasedSimulation.timeBus = new TimedEventBus
-
 	val timer = actorSystem.actorOf(Props[SimulationTimerActor], "timer")
 
 	val actorBuffer = new ListBuffer[ActorRef]()
@@ -53,7 +49,6 @@ class ActorBasedSimulation(val route: Route) {
 
 	def registerActor(actor: Props, name: String): ActorRef = {
 		val actorRef = actorSystem.actorOf(actor, name)
-		ActorBasedSimulation.timeBus.subscribe(actorRef, "time.step")
 
 		actorBuffer append actorRef
 		implicit val timeout = Timeout(1 day)
