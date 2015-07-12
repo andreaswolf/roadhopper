@@ -127,17 +127,39 @@ class Timer extends Actor {
 }
 
 /**
+ * This is an extensible simulation actor that holds standard behaviour common to all timed simulation actors:
+ * it reacts to Start(), StepUpdate() and StepAct() messages and makes that responses to the messages are not sent
+ * before all processing has been done.
+ *
+ * Processing of messages is delegated to handler functions that can (and should) be overridden in classes using this
+ * trait.
+ *
  * See https://stackoverflow.com/a/8683439/3987705
  */
 trait SimulationActor extends Actor {
 	implicit val timeout = Timeout(60 seconds)
 	import context.dispatcher
 
+	// WARNING: it is undefined in which order the case statements from the different Receive instances will be invoked
+	// (as the list is not ordered). If we need to explicitly override any of the cases defined here, we need to convert
+	// this List() into something with explicit ordering.
 	var _receive : List[Receive] = List(
 		{
+			case Start() =>
+				// we need to store sender() here as sender() will point to the dead letter mailbox when andThen() is called.
+				// TODO find out why this is the case
+				val originalSender = sender()
+				start() andThen {
+					case x =>
+						println("Start done for " + self.path)
+						println(sender())
+						println(originalSender)
+						originalSender ! true
+				}
+
 			case StepUpdate(time) =>
 				val originalSender = sender()
-				doUpdate(time) andThen {
+				stepUpdate(time) andThen {
 					case x =>
 						println(f"StepUpdate done for " + self.path)
 						originalSender ! true
@@ -145,38 +167,46 @@ trait SimulationActor extends Actor {
 
 			case StepAct(time) =>
 				val originalSender = sender()
-				doAct(time) andThen {
+				stepAct(time) andThen {
 					case x =>
-						println(f"StepUpdate done for " + self.path)
+						println(f"StepAct done for " + self.path)
 						originalSender ! true
 				}
 		}
 	)
-	def receiver(receive: Actor.Receive) { _receive = receive :: _receive }
+
+	/**
+	 * Registers a new receiver. Call with a partial function to make the actor accept additional types of messages.
+	 * <p/>
+	 * Example:
+	 * <p/>
+	 * <pre>
+	 * registerReceiver {
+	 *   case MyMessage() =>
+	 *     // code to handle MyMessage()
+	 * }</pre>
+	 *
+	 * WARNING the execution order of the receive functions is currently undefined. If you need to override an existing
+	 *         message handler, make sure to fix this issue first!
+	 */
+	def registerReceiver(receive: Actor.Receive) { _receive = receive :: _receive }
 	def receive =  _receive reduce {_ orElse _}
 
-	def doUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any]
+	def start()(implicit exec: ExecutionContext): Future[Any] = Future.successful()
 
-	def doAct(time: Int)(implicit exec: ExecutionContext): Future[Any]
+	def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future.successful()
+
+	def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future.successful()
 }
 
 class ExtensionComponent extends SimulationActor {
-	receiver({
-		case Start() =>
-			println("starting")
-			sender ! true
-	});
 
-	override def doUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
-		Future {
-			println("foo")
-		}
+	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
+		println("foo")
 	}
 
-	override def doAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
-		Future {
-			println("bar")
-		}
+	override def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
+		println("bar")
 	}
 }
 
