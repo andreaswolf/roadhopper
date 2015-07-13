@@ -32,15 +32,16 @@ trait SimulationActor extends Actor {
 	/**
 	 * The list of message handlers. By default, it contains handlers for the basic simulation messages Start(),
 	 * StepUpdate() and StepAct()
-	 *
+	 * <p/>
 	 * See [[registerReceiver()]] for more information on how to add your own handlers.
-	 *
+	 * <p/>
 	 * WARNING: it is undefined in which order the case statements from the different Receive instances will be invoked
 	 * (as the list is not ordered). If we need to explicitly override any of the cases defined here, we need to convert
 	 * this List() into something with explicit ordering.
 	 */
 	var _receive : List[Receive] = List(
 		{
+			// TODO Make a method that creates a ListBuffer of Futures and turns them into a sequence that is then checked by the individual methods in here
 			case Start() =>
 				// we need to store sender() here as sender() will point to the dead letter mailbox when andThen() is called.
 				// TODO find out why this is the case

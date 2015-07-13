@@ -1,6 +1,6 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{ActorLogging, Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
 
@@ -110,7 +110,7 @@ class TwoStepSimulationTimer extends Actor {
 			actors append actor
 			sender ! true
 
-		case Simulate() =>
+		case StartSimulation() =>
 			start()
 
 		/**

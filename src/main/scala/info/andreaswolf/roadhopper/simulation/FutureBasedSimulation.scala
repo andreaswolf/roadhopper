@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 
-import info.andreaswolf.roadhopper.{Simulate, ExtensionComponent, Component}
+import info.andreaswolf.roadhopper.{ExtensionComponent, Component}
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
