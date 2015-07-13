@@ -120,8 +120,9 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 			true
 		} else {
 			log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
-			timer ! Pass
-			context.system.shutdown
+			// the shutdown will only be executed when all existing messages have been processed; therefore, we only tell the
+			// timer to stop, but leave shutting down the system up to it
+			timer ! Stop()
 			false
 		}
 	}

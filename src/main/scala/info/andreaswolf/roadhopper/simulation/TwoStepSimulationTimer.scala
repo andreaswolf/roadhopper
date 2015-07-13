@@ -9,6 +9,10 @@ import scala.concurrent.duration._
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
+/**
+ * Message sent to stop the timer
+ */
+case class Stop()
 case class ScheduleStep(time: Int, actor: ActorRef)
 
 /**
@@ -17,9 +21,11 @@ case class ScheduleStep(time: Int, actor: ActorRef)
  * In the act phase, the components can ask each other for their state and react to state changes, e.g. by adjusting
  * their state and future behaviour.
  */
-class TwoStepSimulationTimer extends Actor {
+class TwoStepSimulationTimer extends Actor with ActorLogging {
 
 	var currentTime = 0
+
+	var running = false
 
 	val actors = new ListBuffer[ActorRef]()
 
@@ -34,6 +40,7 @@ class TwoStepSimulationTimer extends Actor {
 		import context.dispatcher
 
 		println("Starting")
+		running = true
 
 		// initialize all actors by sending them a Start() message and wait for all results
 		val actorFutures = new ListBuffer[Future[Any]]()
@@ -52,7 +59,7 @@ class TwoStepSimulationTimer extends Actor {
 	/**
 	 * Implements a two-step scheduling process: first an UpdateStep() is sent to all scheduled actors, then
 	 * an ActStep is sent.
-	 *
+	 * <p/>
 	 * For each step, the result of all messages is awaited before continuing, making the simulation run with proper
 	 * ordering.
 	 */
@@ -67,7 +74,7 @@ class TwoStepSimulationTimer extends Actor {
 
 		/**
 		 * The main method responsible for performing a step:
-		 *
+		 * <p/>
 		 * First sends a [[StepUpdate]] to every actor, waits for their results and then sends [[StepAct]] to every actor.
 		 * For each of these two steps, one [[Future]] is constructed with [[Future.sequence()]] that holds all the
 		 * message [[Future]]s.
@@ -97,7 +104,9 @@ class TwoStepSimulationTimer extends Actor {
 					//   andThen{ case Success(x) => … case Failure(x) => }
 					Future.sequence(actorFutures.toList).onSuccess({
 						case actResult =>
-							this.doStep()
+							if (running) {
+								this.doStep()
+							}
 					})
 			})
 		}
@@ -112,6 +121,11 @@ class TwoStepSimulationTimer extends Actor {
 
 		case StartSimulation() =>
 			start()
+
+		case Stop() =>
+			log.info(s"Stopping timer at $currentTime")
+			running = false
+			context.system.shutdown()
 
 		/**
 		 * Used by actors to schedule their invocation at some point in the future.
