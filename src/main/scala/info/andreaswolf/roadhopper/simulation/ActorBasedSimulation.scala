@@ -39,7 +39,7 @@ class ActorBasedSimulation(val route: Route) {
 	val vehicle = registerActor(Props(new TwoStepVehicleActor(timer, route.getRoadSegments.head.orientation)), "vehicle")
 	val journey = registerActor(Props(new TwoStepJourneyActor(timer, vehicle, route)), "journey")
 	val driver = registerActor(Props(new TwoStepDriverActor(timer, vehicle, journey)), "driver")
-	//val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
+	val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
 
 	implicit val timeout = Timeout(1 day)
 
