@@ -47,7 +47,6 @@ trait SimulationActor extends Actor {
 				val originalSender = sender()
 				start() andThen {
 					case x =>
-						println("Start done for " + self.path)
 						println(sender())
 						println(originalSender)
 						originalSender ! true
@@ -57,7 +56,6 @@ trait SimulationActor extends Actor {
 				val originalSender = sender()
 				stepUpdate(time) andThen {
 					case x =>
-						println(f"StepUpdate done for " + self.path)
 						originalSender ! true
 				}
 
@@ -65,7 +63,6 @@ trait SimulationActor extends Actor {
 				val originalSender = sender()
 				stepAct(time) andThen {
 					case x =>
-						println(f"StepAct done for " + self.path)
 						originalSender ! true
 				}
 		}

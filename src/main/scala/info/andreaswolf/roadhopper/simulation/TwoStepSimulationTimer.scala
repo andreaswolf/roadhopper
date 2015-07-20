@@ -48,7 +48,6 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 	def start() = {
 		import context.dispatcher
 
-		println("Starting")
 		running = true
 
 		// initialize all actors by sending them a Start() message and wait for all results
@@ -59,10 +58,8 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 		Future.sequence(actorFutures.toList).andThen({
 			// let the loop roll
 			case x =>
-				println("starting loop")
 				doStep()
 		})
-		println("start(): done")
 	}
 
 	/**
@@ -73,13 +70,9 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 	 * ordering.
 	 */
 	def doStep(): Unit = {
-		println("doStep()")
-
 		val nextTime = timeSchedule.keys.min
 		require(currentTime < nextTime, "Scheduled time must be in the future")
 		currentTime = nextTime
-
-		println(f"======= Advancing time to $currentTime")
 
 		/**
 		 * The main method responsible for performing a step:
@@ -97,16 +90,15 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 
 			val actorFutures = new ListBuffer[Future[Any]]()
 			actorsToCall.foreach(actor => {
-				actorFutures.append(actor ? StepUpdate(currentTime) andThen { case x => println("StepUpdate: Future finished") })
+				actorFutures.append(actor ? StepUpdate(currentTime))
 			})
 			// wait for the result of the StepUpdate messages ...
 			Future.sequence(actorFutures.toList).andThen({
 				// ... and then run the StepAct messages
 				case updateResult =>
-					println("===== Update done, starting Act")
 					actorFutures.clear()
 					actorsToCall.foreach(actor => {
-						actorFutures.append(actor ? StepAct(currentTime) andThen { case x => println("StepAct: Future finished") })
+						actorFutures.append(actor ? StepAct(currentTime))
 					})
 					// wait for the result of the StepAct messages
 					// TODO properly check for an error here -> transform this block to this:
