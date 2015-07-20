@@ -28,15 +28,15 @@ case class UpdatePosition(position: GHPoint3D)
 case class Turn(delta: Double)
 
 
-class TwoStepVehicleActor(val timer: ActorRef, val initialOrientation: Double = 0.0) extends SimulationActor
-with ActorLogging {
+class TwoStepVehicleActor(val timer: ActorRef, val initialOrientation: Double = 0.0,
+                          initialPosition: Option[GHPoint3D] = None) extends SimulationActor with ActorLogging {
 
 	val maxSpeed = 50.0
 	var acceleration = 0.0
 	var speed = 0.0
 
 	var orientation = initialOrientation
-	var position: Option[GHPoint3D] = None
+	var position: Option[GHPoint3D] = initialPosition
 
 	var lastUpdateTime = 0
 
