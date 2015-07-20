@@ -6,7 +6,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 case class Step(time: Int)
-case class StartSimulation()
+case class Pass()
 case class RegisterActors(actors: List[ActorRef])
 case class ActorsRegistered()
 case class StopSimulation()

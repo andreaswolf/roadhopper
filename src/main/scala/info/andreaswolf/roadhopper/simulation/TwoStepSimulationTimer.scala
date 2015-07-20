@@ -10,10 +10,19 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
 /**
+ * Message sent to start the simulation
+ */
+case class StartSimulation()
+
+/**
  * Message sent to stop the timer
  */
 case class Stop()
+
+case class RegisterActor(actor: ActorRef)
+
 case class ScheduleStep(time: Int, actor: ActorRef)
+
 
 /**
  * A simulation timer that breaks each step into two phases: an update and an act phase. In the update phase, each
@@ -134,8 +143,6 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 			val alreadyScheduled = timeSchedule.getOrElseUpdate(time, new ListBuffer[ActorRef]())
 			alreadyScheduled append target
 			sender ! true
-
-		case Pass() => println("Pass()")
 	}
 
 }

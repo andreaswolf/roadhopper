@@ -31,6 +31,6 @@ object FutureBasedSimulation extends App {
 	)) onSuccess {
 		case x =>
 			println("Starting")
-			timer ! Simulate()
+			timer ! StartSimulation()
 	}
 }
