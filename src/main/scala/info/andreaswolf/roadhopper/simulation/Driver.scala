@@ -16,27 +16,6 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 
 	val bendEvaluator = new RoadBendEvaluator
 
-	registerReceiver {
-
-		case RoadAhead(time, roadParts) =>
-			if (currentTime % 2000 == 0) {
-				log.debug(roadParts.length + " road segment(s) immediately ahead; " + currentTime)
-				log.debug(bendEvaluator.findBend(roadParts).toString())
-			}
-
-		case VehicleStatus(time, state, travelledDistance) =>
-			if (travelledDistance > 10000) {
-				if (state.speed < -0.25) {
-					vehicle ! SetAcceleration(1.0)
-				} else if (state.speed > 0.25) {
-					vehicle ! SetAcceleration(-1.0)
-				} else {
-					vehicle ! SetAcceleration(0.0)
-					timer ! StopSimulation()
-				}
-			}
-			journey ! RequestRoadAhead(travelledDistance.toInt)
-	}
 
 	/**
 	 * Handler for [[Start]] messages.
@@ -62,7 +41,7 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
 		currentTime = time
 		// Get the current vehicle status and act accordingly
-		vehicle ? RequestVehicleStatus andThen {
+		vehicle ? GetStatus() andThen {
 			case Success(VehicleStatus(_, state, travelledDistance)) => {
 				if (travelledDistance > 10000) {
 					if (state.speed < -0.25) {
