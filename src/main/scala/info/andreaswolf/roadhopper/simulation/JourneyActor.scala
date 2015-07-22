@@ -2,6 +2,7 @@ package info.andreaswolf.roadhopper.simulation
 
 import akka.actor.{ActorLogging, ActorRef, Actor}
 import akka.pattern.ask
+import com.graphhopper.util.shapes.GHPoint3D
 import info.andreaswolf.roadhopper.road.{RoadSegment, Route}
 
 import scala.collection.mutable.ListBuffer
@@ -22,23 +23,26 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 
 	var currentTime = 0
 
+	var currentPosition: Option[GHPoint3D] = None
+
 	var active = true
 
 	registerReceiver({
-		case RequestRoadAhead(position) =>
+		case RequestRoadAhead(travelledDistance) =>
 			// TODO dynamically calculate the distance to get (e.g. based on speed) or get it passed with the request
 			// check if we have probably advanced past the current segment
-			checkCurrentSegment(position)
+			checkCurrentSegment(travelledDistance)
 
 			// make sure we only get segments after the current segment
-			val remainingOnCurrentSegment = currentSegment.length - (position - travelledUntilCurrentSegment)
+			val remainingOnCurrentSegment = currentSegment.length - (travelledDistance - travelledUntilCurrentSegment)
 			// if the length to get is 0, we will be on the current segment for all of the look-ahead distance
 			var lengthToGet = Math.max(0, 150.0 - remainingOnCurrentSegment)
 
-			val offsetOnCurrentSegment = position - travelledUntilCurrentSegment
+			val offsetOnCurrentSegment = travelledDistance - travelledUntilCurrentSegment
 
 			val segmentsAhead = new ListBuffer[RoadSegment]
 			segmentsAhead append RoadSegment.fromExisting(offsetOnCurrentSegment, currentSegment)
+			currentPosition = Some(segmentsAhead.head.start)
 			remainingSegments.foreach(segment => {
 				if (lengthToGet > 0) {
 					segmentsAhead append segment
@@ -58,6 +62,19 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 	 * returned)
 	 */
 	override def start()(implicit exec: ExecutionContext): Future[Any] = timer ? ScheduleStep(10, self)
+
+	/**
+	 * Handler for [[StepUpdate]] messages.
+	 * <p/>
+	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+	 * returned)
+	 *
+	 * @param time The current simulation time in milliseconds
+	 */
+	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] =
+		vehicle ? UpdatePosition(currentPosition.get)
+
 
 	/**
 	 * Handler for [[StepAct]] messages.
@@ -80,7 +97,6 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 					active = false
 				}
 		})
-		// only schedule if the journey has not ended
 		futures.append(timer ? ScheduleStep(time + 10, self))
 
 		Future.sequence(futures.toList)
