@@ -71,10 +71,12 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 		// Factory method for the road check future. Necessary because we only get the required parameter as the result
 		// of an earlier future, but create a new future here by calling another actor (as opposed to the other requests
 		// above, which just check the future’s results)
-		def checkRoadAhead(status: VehicleStatus): Future[Any] =
-		// we cannot directly use the
+		// TODO check how we can react to failures from the previous future here
+		def checkRoadAhead(status: VehicleStatus): Future[Any] = {
 			journey ? RequestRoadAhead(status.travelledDistance.toInt) andThen {
 				case Success(RoadAhead(_, roadParts)) => {
+					// Attention: if this code ever needs to trigger further actions, it must be mapped in a similar structure
+					// as the surrounding method, as we need the futures from these actions on the top level
 					val startTime = currentTime
 					log.debug(roadParts.length + " road segment(s) immediately ahead; " + currentTime)
 					if (currentTime % 2000 == 0) {
@@ -83,6 +85,7 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 					}
 				}
 			}
+		}
 		// using flatMap inserts the first future’s result as the second ones parameter
 		// we cannot directly use the future’s andThen() here, as we create the second future inside and need to
 		val journeyFuture = roadAheadFuture flatMap checkRoadAhead

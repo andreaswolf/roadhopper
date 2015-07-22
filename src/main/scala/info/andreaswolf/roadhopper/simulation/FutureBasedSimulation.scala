@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 
-import info.andreaswolf.roadhopper.{ExtensionComponent, Component}
+import info.andreaswolf.roadhopper.{AnotherComponent, ExtensionComponent, Component}
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
@@ -22,10 +22,12 @@ object FutureBasedSimulation extends App {
 
 	val component = actorSystem.actorOf(Props(new Component(timer)), "component")
 	val extensionComponent = actorSystem.actorOf(Props(new ExtensionComponent), "extension")
+	val anotherComponent = actorSystem.actorOf(Props(new AnotherComponent(timer)), "anotherComponent")
 
 	implicit val timeout = Timeout(10 seconds)
 	implicit val ec: ExecutionContext = actorSystem.dispatcher
 	Future.sequence(List(
+		timer ? RegisterActor(anotherComponent),
 		timer ? RegisterActor(component),
 		timer ? RegisterActor(extensionComponent)
 	)) onSuccess {
