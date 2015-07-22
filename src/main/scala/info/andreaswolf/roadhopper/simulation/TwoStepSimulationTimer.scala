@@ -96,25 +96,26 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 			Future.sequence(actorFutures.toList).andThen({
 				// ... and then run the StepAct messages
 				case updateResult =>
-					if (!running) {
+					if (running) {
 						// if the simulation ended during the update step, continuing here would raise an exception.
+						// doing a return here led to scala.runtime.NonLocalReturnControl$mcV$sp errors
 						// TODO find a way to only schedule the simulation end during the update step and continue until after the
 						// next step
-						return
+
+						actorFutures.clear()
+						actorsToCall.foreach(actor => {
+							actorFutures.append(actor ? StepAct(currentTime))
+						})
+						// wait for the result of the StepAct messages
+						// TODO properly check for an error here -> transform this block to this:
+						//   andThen{ case Success(x) => … case Failure(x) => }
+						Future.sequence(actorFutures.toList).onSuccess({
+							case actResult =>
+								if (running) {
+									this.doStep()
+								}
+						})
 					}
-					actorFutures.clear()
-					actorsToCall.foreach(actor => {
-						actorFutures.append(actor ? StepAct(currentTime))
-					})
-					// wait for the result of the StepAct messages
-					// TODO properly check for an error here -> transform this block to this:
-					//   andThen{ case Success(x) => … case Failure(x) => }
-					Future.sequence(actorFutures.toList).onSuccess({
-						case actResult =>
-							if (running) {
-								this.doStep()
-							}
-					})
 			})
 		}
 
