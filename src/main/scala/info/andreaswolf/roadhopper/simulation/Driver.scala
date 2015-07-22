@@ -38,7 +38,7 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 	 *
 	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+	override def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
 		currentTime = time
 
 		// Get the current vehicle status and act accordingly
