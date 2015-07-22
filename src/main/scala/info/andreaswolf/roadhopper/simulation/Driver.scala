@@ -1,11 +1,11 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor.{ActorLogging, ActorRef}
-import akka.pattern.ask
+import akka.pattern.{AskTimeoutException, ask}
 import info.andreaswolf.roadhopper.road.RoadBendEvaluator
 
-import scala.concurrent.{Future, ExecutionContext}
-import scala.util.Success
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 
 class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: ActorRef)
@@ -26,7 +26,7 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 	 */
 	override def start()(implicit exec: ExecutionContext): Future[Any] = Future {
 		vehicle ? Accelerate(1.0)
-		timer ? ScheduleStep (40, self)
+		timer ? ScheduleStep(40, self)
 	}
 
 	/**
@@ -38,11 +38,18 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 	 *
 	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
+	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
 		currentTime = time
+
 		// Get the current vehicle status and act accordingly
-		vehicle ? GetStatus() andThen {
+		val statusFuture: Future[VehicleStatus] = (vehicle ? GetStatus()).asInstanceOf[Future[VehicleStatus]]
+
+		val cruiseControlFuture = statusFuture andThen {
+			case Failure(x: AskTimeoutException) =>
+				println("Got failure during RequestVehicleStatus " + x)
+
 			case Success(VehicleStatus(_, state, travelledDistance)) => {
+				log.debug("Doing cruise control")
 				if (travelledDistance > 10000) {
 					if (state.speed < -0.25) {
 						vehicle ! SetAcceleration(1.0)
@@ -53,19 +60,48 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 						timer ! StopSimulation()
 					}
 				}
-
-				// if we have a vehicle status, we also have the current position and can thus get the road ahead
-				journey ? RequestRoadAhead andThen {
-					case Success(RoadAhead(_, roadParts)) =>
-						if (currentTime % 2000 == 0) {
-							log.debug(roadParts.length + " road segment(s) immediately ahead; " + currentTime)
-							log.debug(bendEvaluator.findBend(roadParts).toString())
-						}
-				}
 			}
 		}
 
-		timer ? ScheduleStep(currentTime + 40, self)
+		val roadAheadFuture = statusFuture andThen {
+			case Failure(x) =>
+				log.debug("Getting status before RoadAhead failed")
+		}
+
+		// Factory method for the road check future. Necessary because we only get the required parameter as the result
+		// of an earlier future, but create a new future here by calling another actor (as opposed to the other requests
+		// above, which just check the future’s results)
+		def checkRoadAhead(status: VehicleStatus): Future[Any] =
+		// we cannot directly use the
+			journey ? RequestRoadAhead(status.travelledDistance.toInt) andThen {
+				case Success(RoadAhead(_, roadParts)) => {
+					val startTime = currentTime
+					log.debug(roadParts.length + " road segment(s) immediately ahead; " + currentTime)
+					if (currentTime % 2000 == 0) {
+						log.debug(bendEvaluator.findBend(roadParts).toString())
+						log.debug(f"Road evaluation finished; $startTime -> $currentTime")
+					}
+				}
+			}
+		// using flatMap inserts the first future’s result as the second ones parameter
+		// we cannot directly use the future’s andThen() here, as we create the second future inside and need to
+		val journeyFuture = roadAheadFuture flatMap checkRoadAhead
+
+		val futures = List(
+			statusFuture,
+			cruiseControlFuture,
+			roadAheadFuture,
+			journeyFuture,
+			timer ? ScheduleStep(currentTime + 40, self)
+		)
+
+		val originalSender = sender()
+		log.debug("Original sender: " + originalSender.path)
+		// compose the different futures to one list
+		Future.sequence(futures) andThen {
+			case x =>
+				log.debug(f"Scheduling request of ${self.path} passed")
+		}
 	}
 
 }
