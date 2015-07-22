@@ -1,6 +1,6 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{ActorLogging, ActorRef, Actor}
 import akka.util.Timeout
 
 import scala.concurrent.duration._
@@ -24,7 +24,7 @@ case class StepAct(time: Int)
  * <p/>
  * See https://stackoverflow.com/a/8683439/3987705 for the inspiration for this trait.
  */
-trait SimulationActor extends Actor {
+trait SimulationActor extends Actor with ActorLogging {
 	implicit val timeout = Timeout(60 seconds)
 	import context.dispatcher
 
@@ -47,8 +47,6 @@ trait SimulationActor extends Actor {
 				val originalSender = sender()
 				start() andThen {
 					case x =>
-						println(sender())
-						println(originalSender)
 						originalSender ! true
 				}
 
