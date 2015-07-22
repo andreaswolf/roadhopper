@@ -90,21 +90,13 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 		// we cannot directly use the future’s andThen() here, as we create the second future inside and need to
 		val journeyFuture = roadAheadFuture flatMap checkRoadAhead
 
-		val futures = List(
+		Future.sequence(List(
 			statusFuture,
 			cruiseControlFuture,
 			roadAheadFuture,
 			journeyFuture,
 			timer ? ScheduleStep(currentTime + 40, self)
-		)
-
-		val originalSender = sender()
-		log.debug("Original sender: " + originalSender.path)
-		// compose the different futures to one list
-		Future.sequence(futures) andThen {
-			case x =>
-				log.debug(f"Scheduling request of ${self.path} passed")
-		}
+		))
 	}
 
 }
