@@ -6,14 +6,11 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 case class Step(time: Int)
-case class StartSimulation()
+case class Pass()
 case class RegisterActors(actors: List[ActorRef])
-case class RegisterActor(actor: ActorRef)
 case class ActorsRegistered()
 case class StopSimulation()
-case class Start()
 case class ScheduleRequest(time: Int)
-case class Pass()
 
 class SimulationTimerActor extends Actor with ActorLogging {
 	var currentTime: Int = 0

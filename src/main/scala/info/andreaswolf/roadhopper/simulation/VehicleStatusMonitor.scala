@@ -1,28 +1,44 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{ActorLogging, ActorRef, Actor}
-import org.slf4j.LoggerFactory
+import akka.actor.{ActorLogging, ActorRef}
+import akka.pattern.ask
 
-class VehicleStatusMonitor(val timer: ActorRef, val interval: Int, val vehicle: ActorRef) extends Actor with ActorLogging {
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.{Future, ExecutionContext}
+import scala.util.Success
 
-	override def receive: Receive = {
-		case Start() =>
-			timer ! ScheduleRequest(interval)
 
-		case Step(time) =>
-			vehicle ! RequestVehicleStatus()
+class VehicleStatusMonitor(val timer: ActorRef, val interval: Int, val vehicle: ActorRef) extends SimulationActor with ActorLogging {
 
-		case VehicleStatus(time, state, travelledDistance) =>
-			log.debug(f"Vehicle at $time: speed = ${state.speed}%3.2f, acceleration = ${state.acceleration}%1.1f,"
-				+ f" distance = $travelledDistance%3.2f, orientation = ${state.orientation.toDegrees}%3.1f")
+	/**
+	 * Handler for [[Start]] messages.
+	 * <p/>
+	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+	 * returned)
+	 */
+	override def start()(implicit exec: ExecutionContext): Future[Any] = timer ? ScheduleStep(10, self)
 
-			// Normally, we would be able to schedule a new request directly after receiving a Step signal (as this actor
-			// only observes state, but does not need to modify it), but this might lead to weird timing issues if we progress
-			// faster than expected (if e.g. the vehicle already progressed beyond the requested time; past status data is not
-			// saved in the vehicle).
-			// Therefore, we postpone scheduling a new request until here, though that might slow down simulation a bit.
-			timer ! ScheduleRequest(time + interval)
+	/**
+	 * Handler for [[StepAct]] messages.
+	 * <p/>
+	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+	 * returned)
+	 *
+	 * @param time The current simulation time in milliseconds
+	 */
+	override def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+		val futures = new ListBuffer[Future[Any]]()
 
+		futures.append(vehicle ? GetStatus() andThen {
+			case Success(VehicleStatus(statusTime, state, travelledDistance)) =>
+				log.debug(f"Vehicle at $time: speed = ${state.speed}%3.2f, acceleration = ${state.acceleration}%1.1f,"
+								+ f" distance = $travelledDistance%3.2f, orientation = ${state.orientation.toDegrees}%3.1f")
+		})
+		// only schedule if the journey has not ended
+		futures.append(timer ? ScheduleStep(time + interval, self))
+
+		Future.sequence(futures.toList)
 	}
-
 }

@@ -14,8 +14,6 @@ import scala.concurrent.duration._
 
 
 object ActorBasedSimulation extends App {
-	var timeBus = new TimedEventBus
-
 	override def main(args: Array[String]): Unit = {
 		val cmdArgs = CmdArgs.read(args)
 		val roadHopperInstance = new RoadHopper
@@ -34,15 +32,15 @@ object ActorBasedSimulation extends App {
 class ActorBasedSimulation(val route: Route) {
 	val actorSystem = ActorSystem.create("roadhopper")
 
-	ActorBasedSimulation.timeBus = new TimedEventBus
-
-	val timer = actorSystem.actorOf(Props[SimulationTimerActor], "timer")
+	val timer = actorSystem.actorOf(Props[TwoStepSimulationTimer], "timer")
 
 	val actorBuffer = new ListBuffer[ActorRef]()
 
-	val vehicle = registerActor(Props(new VehicleActor(timer, route.getRoadSegments.head.orientation)), "vehicle")
-	val journey = registerActor(Props(new JourneyActor(timer, vehicle, route)), "journey")
-	val driver = registerActor(Props(new DriverActor(timer, vehicle, journey)), "driver")
+	val vehicle = registerActor(Props(
+		new TwoStepVehicleActor(timer, route.getRoadSegments.head.orientation, Some(route.getRoadSegments.head.start))
+	), "vehicle")
+	val journey = registerActor(Props(new TwoStepJourneyActor(timer, vehicle, route)), "journey")
+	val driver = registerActor(Props(new TwoStepDriverActor(timer, vehicle, journey)), "driver")
 	val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
 
 	implicit val timeout = Timeout(1 day)
@@ -53,7 +51,6 @@ class ActorBasedSimulation(val route: Route) {
 
 	def registerActor(actor: Props, name: String): ActorRef = {
 		val actorRef = actorSystem.actorOf(actor, name)
-		ActorBasedSimulation.timeBus.subscribe(actorRef, "time.step")
 
 		actorBuffer append actorRef
 		implicit val timeout = Timeout(1 day)
