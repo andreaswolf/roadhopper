@@ -72,8 +72,13 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 	 *
 	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] =
-		vehicle ? UpdatePosition(currentPosition.get)
+	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
+		if (currentPosition.isDefined) {
+			vehicle ? UpdatePosition(currentPosition.get)
+		} else {
+			Future.successful()
+		}
+	}
 
 
 	/**
