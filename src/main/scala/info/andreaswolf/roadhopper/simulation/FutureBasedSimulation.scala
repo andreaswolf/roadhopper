@@ -21,7 +21,7 @@ object FutureBasedSimulation extends App {
 	val timer = actorSystem.actorOf(Props(new TwoStepSimulationTimer), "timer")
 
 	val component = actorSystem.actorOf(Props(new Component(timer)), "component")
-	val extensionComponent = actorSystem.actorOf(Props(new ExtensionComponent), "extension")
+	val extensionComponent = actorSystem.actorOf(Props(new ExtensionComponent(timer, component)), "extension")
 	val anotherComponent = actorSystem.actorOf(Props(new AnotherComponent(timer)), "anotherComponent")
 
 	implicit val timeout = Timeout(10 seconds)

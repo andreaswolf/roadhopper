@@ -15,7 +15,27 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 
-class ExtensionComponent extends SimulationActor {
+class ExtensionComponent(val timer: ActorRef) extends SimulationActor {
+
+	import VelocityControlActor._
+
+	val velocityControl = context.actorOf(Props(new VelocityControlActor(timer)), "velocityControl")
+
+	/**
+	 * Handler for [[Start]] messages.
+	 * <p/>
+	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+	 * returned)
+	 */
+	override def start()(implicit exec: ExecutionContext): Future[Any] = {
+		log.debug("Initializing " + self.path)
+
+		Future.sequence(List(
+			velocityControl ? TargetVelocity(15),
+			timer ? ScheduleStep(100, self)
+		))
+	}
 
 	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
 		log.debug("foo")
@@ -136,6 +156,7 @@ class Component(val timer: ActorRef) extends Actor with ActorLogging {
 }
 
 case class Question(time: Int)
+
 case class Answer(time: Int)
 
 class Subordinate(val component: ActorRef) extends Actor with ActorLogging {
@@ -147,4 +168,114 @@ class Subordinate(val component: ActorRef) extends Actor with ActorLogging {
 			sender ! Answer(time)
 
 	}
+}
+
+// States
+object VelocityControlActor {
+	sealed trait DrivingMode
+
+	case object Idle extends DrivingMode
+
+	case object Free extends DrivingMode
+
+	case object StopAtPosition extends DrivingMode
+
+
+	sealed trait Data
+
+	case object Uninitialized extends Data
+
+	case class TargetVelocity(velocity: Int) extends Data
+
+	case class VehicleStatus()
+}
+
+object DrivingMode extends Enumeration {
+	val FREE, STOP_AT_POSITION = Value
+}
+
+
+class VelocityControlActor(val timer: ActorRef) extends LoggingFSM[VelocityControlActor.DrivingMode, VelocityControlActor.Data] {
+
+	import VelocityControlActor._
+
+	startWith(Idle, Uninitialized)
+
+	var currentTime = 0.0
+	var _targetVelocity = 0.0
+
+
+	when(Idle) {
+		case Event(TargetVelocity(velocity), _) =>
+			log.debug("Setting target velocity")
+			targetVelocity = velocity
+
+			// replying() is necessary because the FSM user uses ask() to keep control flow in sync
+			goto(Free) using TargetVelocity(velocity) replying (true)
+	}
+
+	when(Free) {
+		case Event(TargetVelocity(velocity), _) =>
+			log.debug("Received Event in Free")
+
+			//
+			stay() replying (true)
+	}
+
+	when(StopAtPosition)(FSM.NullFunction)
+
+	onTransition {
+		case Idle -> Free =>
+			log.debug("Changing Idle → Free")
+
+			nextStateData match {
+				case TargetVelocity(velocity) =>
+					targetVelocity = velocity
+				case x => log.warning("Unrecognized input in transition Idle→Free: " + x)
+			}
+	}
+
+
+	whenUnhandled {
+		case Event(e, s) =>
+			log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
+			stay()
+	}
+
+//
+//	/**
+//	 * Handler for [[Start]] messages.
+//	 * <p/>
+//	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+//	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+//	 * returned)
+//	 */
+//	override def start()(implicit exec: ExecutionContext): Future[Any] = {
+//		timer ? ScheduleStep(100, self)
+//	}
+//
+//	/**
+//	 * Handler for [[StepUpdate]] messages.
+//	 * <p/>
+//	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
+//	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
+//	 * returned)
+//	 *
+//	 * @param time The current simulation time in milliseconds
+//	 */
+//	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+//		timer ? ScheduleStep(time + 100, self)
+//	}
+
+
+	def targetVelocity = _targetVelocity
+	def targetVelocity_=(velocity: Double): Unit = {
+		_targetVelocity = velocity
+		log.debug(s"Setting target velocity to ${_targetVelocity}")
+	}
+
+
+	log.debug("Creating velocity control actor")
+	initialize()
+
 }
