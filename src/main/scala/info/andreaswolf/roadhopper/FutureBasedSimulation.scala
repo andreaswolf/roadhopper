@@ -32,13 +32,25 @@ class ExtensionComponent(val timer: ActorRef) extends SimulationActor {
 		log.debug("Initializing " + self.path)
 
 		Future.sequence(List(
-			velocityControl ? TargetVelocity(15),
+			velocityControl ? SetTargetVelocity(15),
 			timer ? ScheduleStep(100, self)
 		))
 	}
 
-	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
+	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
 		log.debug("foo")
+
+		Future.sequence(List(
+			timer ? ScheduleStep(time + 100, self),
+			velocityControl ? TellVehicleStatus(new VehicleState(1.0, 10.0, Math.PI, None), 100.0),
+			{
+				if (time == 1000) {
+					velocityControl ? SetStopPosition(100.0)
+				} else {
+					Future.successful()
+				}
+			}
+		))
 	}
 
 	override def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
@@ -170,8 +182,11 @@ class Subordinate(val component: ActorRef) extends Actor with ActorLogging {
 	}
 }
 
-// States
 object VelocityControlActor {
+
+	/**
+	 * The driving mode is the state of our velocity control.
+	 */
 	sealed trait DrivingMode
 
 	case object Idle extends DrivingMode
@@ -181,58 +196,138 @@ object VelocityControlActor {
 	case object StopAtPosition extends DrivingMode
 
 
+	/**
+	 * The data is additional information that is carried around between the events. It can be passed to a state using
+	 *
+	 * <pre>
+	 *   goto(State) using DataClass(arguments)
+	 * </pre>
+	 *
+	 * The same works for [[FSM.stay()]]. The data classes should not be used from the outside.
+	 */
 	sealed trait Data
 
 	case object Uninitialized extends Data
 
 	case class TargetVelocity(velocity: Int) extends Data
 
-	case class VehicleStatus()
+	/**
+	 * TODO check if we should optionally keep the velocity here for speeding up again after the stop.
+	 */
+	case class StopPosition(position: Double) extends Data
+
+
+	/**
+	 * Events are messages sent to the FSM from the outside. The FSM can receive any message (wrapped in an Event() case
+	 * class), but to better expose the protocol, we explicitly define the allowed message types here.
+	 *
+	 * The class names should involve an action (like "Set…" or "Tell…")
+	 */
+	sealed trait Event
+
+	/**
+	 * Inform the velocity control about the current vehicle state. Time is not included, as everything is
+	 * synchronous and we also don’t record the status here.
+	 */
+	case class TellVehicleStatus(state: VehicleState, travelledDistance: Double) extends Event
+
+	/**
+	 * Set the velocity we should aim for. There is no guarantee that this will ever be reached, but if possible,
+	 * it should.
+	 */
+	case class SetTargetVelocity(velocity: Int) extends Event
+
+	/**
+	 * Sets the position where we should stop. The vehicle will stop in any case, unless a different message is received
+	 * before; if it is impossible to stop at the location (because it is too near already), the vehicle will stop at
+	 * the next feasible location
+	 */
+	case class SetStopPosition(position: Double) extends Event
 }
 
-object DrivingMode extends Enumeration {
-	val FREE, STOP_AT_POSITION = Value
-}
 
-
+/**
+ * The velocity control state machine.
+ *
+ * See http://chariotsolutions.com/blog/post/fsm-actors-akka/ for a good overview of how FSMs in Akka work
+ */
 class VelocityControlActor(val timer: ActorRef) extends LoggingFSM[VelocityControlActor.DrivingMode, VelocityControlActor.Data] {
 
 	import VelocityControlActor._
 
 	startWith(Idle, Uninitialized)
 
-	var currentTime = 0.0
 	var _targetVelocity = 0.0
+	var _vehicleStatus = null
 
 
 	when(Idle) {
-		case Event(TargetVelocity(velocity), _) =>
+		case Event(TellVehicleStatus(state, travelledDistance), _) =>
+			log.debug("Received vehicle status")
+			// No need to do anything here, as we are idle.
+			stay() replying(true)
+
+		case Event(SetTargetVelocity(velocity), _) =>
 			log.debug("Setting target velocity")
 			targetVelocity = velocity
 
 			// replying() is necessary because the FSM user uses ask() to keep control flow in sync
 			goto(Free) using TargetVelocity(velocity) replying (true)
-	}
 
-	when(Free) {
-		case Event(TargetVelocity(velocity), _) =>
-			log.debug("Received Event in Free")
-
-			//
+		case x =>
+			log.warning(s"Unhandled event in status Idle: $x")
 			stay() replying (true)
 	}
 
-	when(StopAtPosition)(FSM.NullFunction)
+	when(Free) {
+		case Event(TellVehicleStatus(state, travelledDistance), TargetVelocity(velocity)) =>
+			log.debug(s"Received vehicle status; aiming for $velocity")
+
+			stay() replying(true)
+
+		case Event(TellVehicleStatus(state, travelledDistance), StopPosition(position)) =>
+			log.debug(s"Received vehicle status; stopping at $position")
+
+			stay() replying(true)
+
+		case Event(SetTargetVelocity(velocity), _) =>
+			log.debug("Received SetTargetVelocity in Free")
+
+			// replying() is necessary because the FSM user uses ask() to keep control flow in sync
+			stay() replying (true)
+
+		case Event(SetStopPosition(position), _) =>
+			log.debug("Received StopAtPosition in Free")
+
+			// Change state
+			goto(StopAtPosition) using (StopPosition(position)) replying (true)
+
+		case x =>
+			log.warning(s"Unhandled event in status Free: $x")
+			stay() replying (true)
+	}
+
+	when(StopAtPosition) {
+		case Event(TellVehicleStatus(state, travelledDistance), StopPosition(position)) =>
+			log.debug(s"Received vehicle status; stopping at $position")
+
+			// TODO implement a model of the process to stop the vehicle
+
+			stay() replying(true)
+	}
 
 	onTransition {
 		case Idle -> Free =>
-			log.debug("Changing Idle → Free")
+			log.debug("Switching state: Idle → Free")
 
 			nextStateData match {
 				case TargetVelocity(velocity) =>
 					targetVelocity = velocity
 				case x => log.warning("Unrecognized input in transition Idle→Free: " + x)
 			}
+
+		case Free -> StopAtPosition =>
+			log.debug("Switching state: Free → StopAtPosition")
 	}
 
 
