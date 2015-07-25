@@ -42,7 +42,7 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 		currentTime = time
 
 		// Get the current vehicle status and act accordingly
-		val statusFuture: Future[VehicleStatus] = (vehicle ? GetStatus()).asInstanceOf[Future[VehicleStatus]]
+		val statusFuture: Future[JourneyStatus] = (vehicle ? GetStatus()).asInstanceOf[Future[JourneyStatus]]
 
 		val cruiseControlFuture = statusFuture andThen {
 			case Failure(x: AskTimeoutException) =>
@@ -72,7 +72,7 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 		// of an earlier future, but create a new future here by calling another actor (as opposed to the other requests
 		// above, which just check the future’s results)
 		// TODO check how we can react to failures from the previous future here
-		def checkRoadAhead(status: VehicleStatus): Future[Any] = {
+		def checkRoadAhead(status: JourneyStatus): Future[Any] = {
 			journey ? RequestRoadAhead(status.travelledDistance.toInt) andThen {
 				case Success(RoadAhead(_, roadParts)) => {
 					// Attention: if this code ever needs to trigger further actions, it must be mapped in a similar structure

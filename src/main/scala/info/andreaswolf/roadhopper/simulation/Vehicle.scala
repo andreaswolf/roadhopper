@@ -12,11 +12,14 @@ case class Decelerate(value: Double)
 
 case class SetAcceleration(value: Double)
 
-case class RequestVehicleStatus()
+case class RequestJourneyStatus()
 
 case class GetStatus()
 
-case class VehicleStatus(time: Int, state: VehicleState, travelledDistance: Double)
+case class JourneyStatus(time: Int, vehicleState: VehicleState, travelledDistance: Double) {
+	def this(time: Int, vehicleState: VehicleState, journeyState: JourneyState) =
+		this(time, vehicleState, journeyState.travelledDistance)
+}
 
 case class UpdatePosition(position: GHPoint3D)
 
@@ -63,7 +66,9 @@ class TwoStepVehicleActor(val timer: ActorRef, val initialOrientation: Double = 
 			position = Some(pos)
 
 		case GetStatus() =>
-			sender() ! VehicleStatus(lastUpdateTime, new VehicleState(acceleration, speed, orientation, position), travelledDistance)
+			sender() ! new JourneyStatus(lastUpdateTime,
+				new VehicleState(acceleration, speed, orientation, position), new JourneyState(travelledDistance)
+			)
 	})
 
 	/**

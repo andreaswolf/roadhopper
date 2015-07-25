@@ -97,8 +97,8 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 		val futures = new ListBuffer[Future[Any]]()
 
 		futures.append(vehicle ? GetStatus() andThen {
-			case Success(VehicleStatus(statusTime, state, travelledDistance)) =>
-				if (!checkCurrentSegment(travelledDistance)) {
+			case Success(status @ JourneyStatus(statusTime, state, travelledDistance)) =>
+				if (!checkCurrentSegment(status.travelledDistance)) {
 					active = false
 				}
 		})

@@ -29,8 +29,8 @@ class SimulationResultLogger(val result: SimulationResult, val timer: ActorRef, 
 		Future.sequence(
 			List(
 				vehicle ? GetStatus() andThen {
-					case Success(VehicleStatus(statusTime, state, travelledDistance)) =>
-						result.setStatus(0, state);
+					case Success(status @ JourneyStatus(statusTime, state, travelledDistance)) =>
+						result.setStatus(0, status.vehicleState);
 				},
 				timer ? ScheduleStep(interval, self)
 			)
@@ -50,8 +50,8 @@ class SimulationResultLogger(val result: SimulationResult, val timer: ActorRef, 
 		Future.sequence(
 			List(
 				vehicle ? GetStatus() andThen {
-					case Success(VehicleStatus(statusTime, state, travelledDistance)) =>
-						result.setStatus(statusTime, state)
+					case Success(status @ JourneyStatus(statusTime, state, travelledDistance)) =>
+						result.setStatus(status.time, status.vehicleState)
 				},
 				timer ? ScheduleStep(time + interval, self)
 			)

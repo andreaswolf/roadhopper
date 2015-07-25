@@ -32,9 +32,9 @@ class VehicleStatusMonitor(val timer: ActorRef, val interval: Int, val vehicle: 
 		val futures = new ListBuffer[Future[Any]]()
 
 		futures.append(vehicle ? GetStatus() andThen {
-			case Success(VehicleStatus(statusTime, state, travelledDistance)) =>
-				log.debug(f"Vehicle at $time: speed = ${state.speed}%3.2f, acceleration = ${state.acceleration}%1.1f,"
-								+ f" distance = $travelledDistance%3.2f, orientation = ${state.orientation.toDegrees}%3.1f")
+			case Success(status @ JourneyStatus(statusTime, state, travelledDistance)) =>
+				log.debug(f"Vehicle at $time: speed = ${status.vehicleState.speed}%3.2f, acceleration = ${status.vehicleState.acceleration}%1.1f,"
+								+ f" distance = ${status.travelledDistance}%3.2f, orientation = ${status.vehicleState.orientation.toDegrees}%3.1f")
 		})
 		// only schedule if the journey has not ended
 		futures.append(timer ? ScheduleStep(time + interval, self))
