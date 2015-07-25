@@ -53,7 +53,9 @@ class TwoStepVehicleActor(val timer: ActorRef, val initialOrientation: Double = 
 			acceleration -= value
 
 		case SetAcceleration(value) =>
+			log.debug(s"Setting acceleration to $value m/s")
 			acceleration = value
+			sender() ! true
 
 		case Turn(delta) =>
 			orientation += delta
@@ -93,7 +95,16 @@ class TwoStepVehicleActor(val timer: ActorRef, val initialOrientation: Double = 
 	 */
 	override def stepUpdate(time: Int)(implicit exec: ExecutionContext) = Future.sequence(List(
 		Future {
-			speed += acceleration * (time - lastUpdateTime) / 1000
+			val oldSpeed = speed
+			if (acceleration < 0.0) {
+				// only brake if no acceleration; also make sure we don’t end up with negative speeds
+				// TODO introduce support for going backwards?
+				speed = Math.max(0, speed + acceleration * (time - lastUpdateTime) / 1000)
+				log.debug(f"Decreased speed: $oldSpeed%.2f -> $speed%.2f")
+			} else {
+				speed += acceleration * (time - lastUpdateTime) / 1000
+				log.debug(f"Updated speed: $oldSpeed%.2f -> $speed%.2f")
+			}
 			if (speed > maxSpeed) {
 				acceleration = 0.0
 				speed = maxSpeed

@@ -11,11 +11,15 @@ import scala.util.Success
 
 case class RequestRoadAhead(position: Int)
 
-case class RoadAhead(time: Int, roadParts: List[RoadSegment])
+case class RoadAhead(time: Int, roadParts: List[RoadSegment], isEnding: Boolean = false) {
+	def length: Double = roadParts.map(_.length).sum
+}
 
 
 class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route: Route)
 	extends SimulationActor with ActorLogging {
+
+	val length = route.parts.map(_.length).sum
 
 	var remainingSegments = route.parts.tail
 	var currentSegment = route.parts.head
@@ -49,7 +53,13 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 					lengthToGet -= segment.length
 				}
 			})
-			sender ! RoadAhead(currentTime, segmentsAhead.toList)
+			// if there are no more journey parts left after the current ones, this journey will end
+			val journeyEndsAfterFilteredSegments: Boolean = remainingSegments.length == segmentsAhead.length - 1
+
+			sender ! RoadAhead(currentTime, segmentsAhead.toList, journeyEndsAfterFilteredSegments)
+			log.debug(f"Travelled until here: $travelledDistance, LengthToGet: $lengthToGet%.2f;" +
+				f" got length: ${segmentsAhead.toList.map(_.length).sum}%.2f;" +
+				f" segments: ${segmentsAhead.length - 1}/${remainingSegments.length}")
 			// inform the vehicle about its current position (= the start of the first road segment ahead)
 			vehicle ! UpdatePosition(segmentsAhead.head.start)
 	})
@@ -73,6 +83,7 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 	 * @param time The current simulation time in milliseconds
 	 */
 	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
+		currentTime = time
 		if (currentPosition.isDefined) {
 			vehicle ? UpdatePosition(currentPosition.get)
 		} else {
@@ -98,8 +109,10 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 
 		futures.append(vehicle ? GetStatus() andThen {
 			case Success(status @ JourneyStatus(statusTime, state, travelledDistance)) =>
-				if (!checkCurrentSegment(status.travelledDistance)) {
+				log.debug(f"to travel: ${Math.abs(travelledDistance - length)}%.2f")
+				if (state.speed == 0.0 && Math.abs(travelledDistance - length) < 1.5) {
 					active = false
+					timer ! Stop()
 				}
 		})
 		futures.append(timer ? ScheduleStep(time + 10, self))

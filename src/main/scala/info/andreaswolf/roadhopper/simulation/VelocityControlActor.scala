@@ -23,7 +23,18 @@
 package info.andreaswolf.roadhopper.simulation
 
 import akka.actor._
+import akka.pattern.ask
+import akka.util.Timeout
+import info.andreaswolf.roadhopper.road.{RoadSegment, StopSign}
 
+import scala.concurrent.{Await, Future}
+import scala.util.Success
+import scala.concurrent.duration._
+
+
+/**
+ * Companion for the velocity control state machine. Holds the driving modes
+ */
 object VelocityControlActor {
 
 	/**
@@ -42,21 +53,39 @@ object VelocityControlActor {
 	 * The data is additional information that is carried around between the events. It can be passed to a state using
 	 *
 	 * <pre>
-	 *   goto(State) using DataClass(arguments)
+	 * goto(State) using DataClass(arguments)
 	 * </pre>
 	 *
 	 * The same works for [[FSM.stay()]]. The data classes should not be used from the outside.
 	 */
-	sealed trait Data
+	sealed abstract class Data(val status: JourneyStatus, val position: Double)
 
-	case object Uninitialized extends Data
+	case object Uninitialized extends Data(new JourneyStatus(0, VehicleState.getDefault(), 0.0), 0)
 
-	case class TargetVelocity(velocity: Int) extends Data
+	case class TargetVelocity(velocity: Int, override val status: JourneyStatus)
+		extends Data(status, status.travelledDistance) {
+
+		def this(velocity: Int, data: Data) = this(velocity, data.status)
+	}
 
 	/**
-	 * TODO check if we should optionally keep the velocity here for speeding up again after the stop.
+	 * @param velocity The target velocity to aim for before/after stopping
 	 */
-	case class StopPosition(position: Double) extends Data
+	case class StopPosition(stopPosition: Double, velocity: Double = 0.0, override val status: JourneyStatus)
+		extends Data(status, status.travelledDistance) {
+
+		// TODO do we need this?
+		def this(stopPosition: Double, data: Data) = this(stopPosition, 0.0, data.status)
+
+		def this(stopPosition: Double, data: TargetVelocity) = this(stopPosition, data.velocity, data.status)
+
+		/**
+		 * Copy constructor for updating the current JourneyStatus
+		 *
+		 * @param data The current state data
+		 */
+		def this(journeyStatus: JourneyStatus, data: StopPosition) = this(data.stopPosition, data.velocity, journeyStatus)
+	}
 
 
 	/**
@@ -70,8 +99,16 @@ object VelocityControlActor {
 	/**
 	 * Inform the velocity control about the current vehicle state. Time is not included, as everything is
 	 * synchronous and we also don’t record the status here.
+	 * TODO: use JourneyStatus instead, remove time information from it
 	 */
-	case class TellVehicleStatus(state: VehicleState, travelledDistance: Double) extends Event
+	case class TellVehicleStatus(state: VehicleState, travelledDistance: Double) extends Event {
+		def this(state: VehicleState, journeyState: JourneyState) = this(state, journeyState.travelledDistance)
+	}
+
+	/**
+	 * Inform the velocity control about the road ahead of the vehicle
+	 */
+	case class TellRoadAhead(road: RoadAhead) extends Event
 
 	/**
 	 * Set the velocity we should aim for. There is no guarantee that this will ever be reached, but if possible,
@@ -85,6 +122,7 @@ object VelocityControlActor {
 	 * the next feasible location
 	 */
 	case class SetStopPosition(position: Double) extends Event
+
 }
 
 
@@ -93,8 +131,12 @@ object VelocityControlActor {
  *
  * See http://chariotsolutions.com/blog/post/fsm-actors-akka/ for a good overview of how FSMs in Akka work
  */
-class VelocityControlActor(val timer: ActorRef) extends LoggingFSM[VelocityControlActor.DrivingMode, VelocityControlActor.Data] {
+class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
+	extends LoggingFSM[VelocityControlActor.DrivingMode, VelocityControlActor.Data] {
 
+	implicit val timeout = Timeout(10 seconds)
+
+	import context.dispatcher
 	import VelocityControlActor._
 
 	startWith(Idle, Uninitialized)
@@ -104,34 +146,79 @@ class VelocityControlActor(val timer: ActorRef) extends LoggingFSM[VelocityContr
 	var _vehicleStatus = null
 
 
+	/**
+	 * Event handlers for the Idle state
+	 */
 	when(Idle) {
 		case Event(TellVehicleStatus(state, travelledDistance), _) =>
 			log.debug("Received vehicle status")
 			// No need to do anything here, as we are idle.
-			stay() replying(true)
+			stay() replying (true)
 
-		case Event(SetTargetVelocity(velocity), _) =>
+		case Event(SetTargetVelocity(velocity), data) =>
 			log.debug("Setting target velocity")
 			targetVelocity = velocity
 
 			// replying() is necessary because the FSM user uses ask() to keep control flow in sync
-			goto(Free) using TargetVelocity(velocity) replying (true)
+			goto(Free) using new TargetVelocity(velocity, data) replying (true)
+
+
+		case Event(TellRoadAhead(road), _) =>
+			// Ignoring information about the road in idle mode, as we will get it in driving mode anyways
+			stay() replying (true)
 
 		case x =>
 			log.warning(s"Unhandled event in status Idle: $x")
 			stay() replying (true)
 	}
 
+	/**
+	 * Event handlers for the Free state
+	 */
 	when(Free) {
-		case Event(TellVehicleStatus(state, travelledDistance), TargetVelocity(velocity)) =>
+		case Event(TellVehicleStatus(state, travelledDistance), TargetVelocity(velocity, _)) =>
 			log.debug(s"Received vehicle status; aiming for $velocity")
 
-			stay() replying(true)
+			adjustAccelerationForFreeDriving(travelledDistance, velocity, state)
 
-		case Event(TellVehicleStatus(state, travelledDistance), StopPosition(position)) =>
+			// create a new TargetVelocity object as it must contain the currently travelled distance
+			stay() using (new TargetVelocity(velocity, new JourneyStatus(0, state, travelledDistance))) replying (true)
+
+		case Event(TellVehicleStatus(state, travelledDistance), StopPosition(position, _, _)) =>
 			log.debug(s"Received vehicle status; stopping at $position")
+			// TODO this should not be reachable
 
-			stay() replying(true)
+			stay() replying (true)
+
+		case Event(TellRoadAhead(road), data @ TargetVelocity(velocity, _)) =>
+			// check if there is a stop sign ahead
+			var length = 0.0
+			def checkStopSign(roadPart: RoadSegment): Boolean = {
+				roadPart.roadSign.isDefined && roadPart.roadSign.get.isInstanceOf[StopSign]
+			}
+			var newState: State = null
+			for (roadPart <- road.roadParts) {
+				length += roadPart.length
+				// ignore ultra-short road segments before a stop sign (these will likely mean that we already stopped and
+				// are just starting again)
+				if (newState == null && checkStopSign(roadPart) && length > 2.0) {
+					newState = (goto(StopAtPosition)
+						using (new StopPosition(data.status.travelledDistance + length, data))
+						replying (true)
+					)
+				}
+			}
+			// if the end of the journey comes close, we need to set a stop point there
+			if (newState == null && road.isEnding) {
+				newState = (goto(StopAtPosition)
+					using (new StopPosition(data.status.travelledDistance + road.length, data))
+					replying (true)
+				)
+			}
+			if (newState == null) {
+				newState = stay() replying (true)
+			}
+			newState
 
 		case Event(SetTargetVelocity(velocity), _) =>
 			log.debug("Received SetTargetVelocity in Free")
@@ -139,11 +226,11 @@ class VelocityControlActor(val timer: ActorRef) extends LoggingFSM[VelocityContr
 			// replying() is necessary because the FSM user uses ask() to keep control flow in sync
 			stay() replying (true)
 
-		case Event(SetStopPosition(position), _) =>
+		case Event(SetStopPosition(position), data) =>
 			log.debug("Received StopAtPosition in Free")
 
 			// Change state
-			goto(StopAtPosition) using (StopPosition(position)) replying (true)
+			goto(StopAtPosition) using (new StopPosition(position, data)) replying (true)
 
 		case x =>
 			log.warning(s"Unhandled event in status Free: $x")
@@ -151,21 +238,31 @@ class VelocityControlActor(val timer: ActorRef) extends LoggingFSM[VelocityContr
 	}
 
 	when(StopAtPosition) {
-		case Event(TellVehicleStatus(state, travelledDistance), StopPosition(position)) =>
-			log.debug(s"Received vehicle status; stopping at $position")
+		case Event(TellVehicleStatus(state, travelledDistance), stateData @ StopPosition(stopPosition, _, _)) =>
+			log.debug(s"Received vehicle status; stopping at $stopPosition")
 
-			// TODO implement a model of the process to stop the vehicle
+			adjustAccelerationForStopAtPosition(travelledDistance, stateData, state)
 
-			stay() replying(true)
+
+		case Event(TellRoadAhead(road), _) =>
+			// TODO no need to do anything here?
+
+			stay() replying (true)
 	}
 
 	onTransition {
 		case Idle -> Free =>
 			log.debug("Switching state: Idle → Free")
 
+			(vehicle ? SetAcceleration(1.0)).andThen {
+				case Success(x) =>
+					log.info("Acceleration was set")
+			}
+			log.debug("After setting acceleration")
 			nextStateData match {
-				case TargetVelocity(velocity) =>
+				case TargetVelocity(velocity, _) =>
 					targetVelocity = velocity
+
 				case x => log.warning("Unrecognized input in transition Idle→Free: " + x)
 			}
 
@@ -180,33 +277,66 @@ class VelocityControlActor(val timer: ActorRef) extends LoggingFSM[VelocityContr
 			stay()
 	}
 
-//
-//	/**
-//	 * Handler for [[Start]] messages.
-//	 * <p/>
-//	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
-//	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
-//	 * returned)
-//	 */
-//	override def start()(implicit exec: ExecutionContext): Future[Any] = {
-//		timer ? ScheduleStep(100, self)
-//	}
-//
-//	/**
-//	 * Handler for [[StepUpdate]] messages.
-//	 * <p/>
-//	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
-//	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
-//	 * returned)
-//	 *
-//	 * @param time The current simulation time in milliseconds
-//	 */
-//	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
-//		timer ? ScheduleStep(time + 100, self)
-//	}
+
+	def adjustAccelerationForFreeDriving(currentPosition: Double, targetVelocity: Double, vehicleState: VehicleState) = {
+
+		// TODO check remaining distance on journey
+		val delta_v = (targetVelocity - vehicleState.speed)
+
+		val accelerationFuture: Future[Any] = {
+			delta_v match {
+				case x if x > 15 => vehicle ? SetAcceleration(2.0)
+				case x if x > 5 => vehicle ? SetAcceleration(1.0)
+				case x if x > 1 => vehicle ? SetAcceleration(0.5)
+				case x if x > 0.25 => vehicle ? SetAcceleration(0.25)
+				case x if x > 0 => vehicle ? SetAcceleration(0.05)
+				case x if x < 0 => vehicle ? SetAcceleration(-0.05)
+			}
+		}
+
+	}
+
+	def adjustAccelerationForStopAtPosition(currentPosition: Double, stateData: StopPosition, vehicleState: VehicleState): State = {
+		val distanceToStop = stateData.stopPosition - currentPosition
+
+		// "circuit breaker" for testing; can be removed later on
+		if (distanceToStop < 0) {
+			log.error("Threw circuit breaker!")
+			context.system.shutdown()
+		}
+
+		// stop one meter before the actual point
+		val requiredDeceleration = vehicleState.speed * vehicleState.speed / (2 * (distanceToStop - 1))
+
+		val decelerationFuture: Future[Any] = {
+			requiredDeceleration match {
+				case x if x > 1.5 => vehicle ? SetAcceleration(-2.0)
+				case x if x > 1.0 => vehicle ? SetAcceleration(0.0)
+				// TODO 10m is just a guess; check this again
+				case x if x < 0.4 && distanceToStop < 10.0 => vehicle ? SetAcceleration(-0.2)
+				case x if x < 0.05 && distanceToStop < 10.0 => vehicle ? SetAcceleration(-0.05)
+				case x if x < 0 => vehicle ? SetAcceleration(0.05)
+				case x => Future.successful() // do nothing
+			}
+		}
+		log.debug(f"Remaining until stop position: $distanceToStop%.2f, current speed: ${vehicleState.speed}%.2f, " +
+			f"required deceleration: $requiredDeceleration%.2f")
+
+		Await.result(decelerationFuture, 1 second)
+
+		val journeyStatus: JourneyStatus = new JourneyStatus(0, vehicleState, currentPosition)
+
+		if (vehicleState.speed == 0.0 && distanceToStop < 1.1) {
+			// TODO use the real target velocity here; also use the correct time in JourneyStatus or get rid of the time completely
+			goto(Free) using (TargetVelocity(15, journeyStatus)) replying (true)
+		} else {
+			stay() using (new StopPosition(journeyStatus, stateData)) replying (true)
+		}
+	}
 
 
 	def targetVelocity = _targetVelocity
+
 	def targetVelocity_=(velocity: Double): Unit = {
 		_targetVelocity = velocity
 		log.debug(s"Setting target velocity to ${_targetVelocity}")
