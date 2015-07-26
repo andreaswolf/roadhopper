@@ -128,19 +128,30 @@ object VelocityControlActor {
 
 /**
  * The velocity control state machine.
- *
- * See http://chariotsolutions.com/blog/post/fsm-actors-akka/ for a good overview of how FSMs in Akka work
+ * <p/>
+ * The basic model is very simple: there are three states, Uninitialized, Free and StopAtPosition. While driving, the
+ * state always cycles between Free and StopAtPosition, depending on the road ahead.
+ * <p/>
+ * If there is a stop sign in sight, the actor will check the distance and start slowing down as soon as the necessary
+ * deceleration for stopping exceeds a certain threshold. The slowdown currently is very artificial, as there is no real
+ * force model for the vehicle—which means there is no "natural" slowdown happening.
+ * <p/>
+ * During free mode, the vehicle will be accelerated to the given target velocity and then keep it until the necessity
+ * arises to stop again. A target velocity that was once set is also kept during a stop period.
+ * <p/>
+ * When the end of the journey comes close, an "artificial stop sign" is set at the end of the journey. The vehicle
+ * is then slowed down towards this point.
+ * <p/>
+ * See http://chariotsolutions.com/blog/post/fsm-actors-akka/ for a good overview of how FSMs in Akka work in general.
  */
 class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 	extends LoggingFSM[VelocityControlActor.DrivingMode, VelocityControlActor.Data] {
 
 	implicit val timeout = Timeout(10 seconds)
 
-	import context.dispatcher
 	import VelocityControlActor._
 
 	startWith(Idle, Uninitialized)
-
 
 	/**
 	 * Event handlers for the Idle state
@@ -181,29 +192,36 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 
 		case Event(TellVehicleStatus(state, travelledDistance), StopPosition(position, _, _)) =>
 			log.debug(s"Received vehicle status; stopping at $position")
-			// TODO this should not be reachable
+			// TODO check how far we are from the stop position; if we reach it within a defined timespan, we should switch
+			// over to state "StopAtPosition"
 
 			stay() replying (true)
 
 		case Event(TellRoadAhead(road), data @ TargetVelocity(velocity, _)) =>
-			// check if there is a stop sign ahead
 			var length = 0.0
-			def checkStopSign(roadPart: RoadSegment): Boolean = {
+			var newState: State = null
+
+			def hasStopSign(roadPart: RoadSegment): Boolean = {
 				roadPart.roadSign.isDefined && roadPart.roadSign.get.isInstanceOf[StopSign]
 			}
-			var newState: State = null
+
+			// if we find a reason to stop on the road, we must save that and act accordingly
 			for (roadPart <- road.roadParts) {
 				length += roadPart.length
 				// ignore ultra-short road segments before a stop sign (these will likely mean that we already stopped and
 				// are just starting again)
-				if (newState == null && checkStopSign(roadPart) && length > 2.0) {
+				if (newState == null && hasStopSign(roadPart) && length > 2.0) {
+					// TODO we should not directly switch state, but instead wait for the next vehicle status – it might be that
+					// the stop position is very far ahead and it would be unreasonable to think of stopping already
 					newState = (goto(StopAtPosition)
 						using (new StopPosition(data.status.travelledDistance + length, data))
 						replying (true)
 					)
 				}
 			}
-			// if the end of the journey comes close, we need to set a stop point there
+
+			// if the end of the journey comes close, we need to set a stop point there, if there is no stop point before
+			// already
 			if (newState == null && road.isEnding) {
 				newState = (goto(StopAtPosition)
 					using (new StopPosition(data.status.travelledDistance + road.length, data))
@@ -247,16 +265,10 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 
 	onTransition {
 		case Idle -> Free =>
-			log.debug("Switching state: Idle → Free")
-
-			(vehicle ? SetAcceleration(1.0)).andThen {
-				case Success(x) =>
-					log.info("Acceleration was set")
-			}
-			log.debug("After setting acceleration")
+			log.info("Switching state: Idle → Free")
 
 		case Free -> StopAtPosition =>
-			log.debug("Switching state: Free → StopAtPosition")
+			log.info("Switching state: Free → StopAtPosition")
 	}
 
 
@@ -323,9 +335,6 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 		}
 	}
 
-
-
-	log.debug("Creating velocity control actor")
 	initialize()
 
 }
