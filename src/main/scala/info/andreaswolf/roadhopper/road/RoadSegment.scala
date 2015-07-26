@@ -120,4 +120,13 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D) extends RoutePart {
 	}
 
 	override def toString = f"RoadSegment($length%.2f, ${orientation.toDegrees}%.2f°)"
+
+	override def equals(obj: scala.Any): Boolean = {
+		obj match {
+			case segment: RoadSegment =>
+				segment.start == start && segment.end == end
+			case _ =>
+				super.equals(obj)
+		}
+	}
 }

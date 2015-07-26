@@ -32,4 +32,16 @@ class RoadSegmentTest extends FunSuite {
 		}
 	}
 
+	test("Segments are equal for same start and end") {
+		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
+		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
+		assert(new RoadSegment(a, b) == new RoadSegment(a, b))
+	}
+
+	test("Segments are not equal if start and end are swapped") {
+		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
+		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
+		assert(new RoadSegment(a, b) != new RoadSegment(b, a))
+	}
+
 }
