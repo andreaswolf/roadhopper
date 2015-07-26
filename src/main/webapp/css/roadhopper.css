@@ -22,6 +22,11 @@ path.area {
   fill: #e7e7e7;
 }
 
+.overlay {
+	fill: none;
+	pointer-events: all;
+}
+
 .axis {
   shape-rendering: crispEdges;
 }

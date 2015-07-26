@@ -57,15 +57,16 @@
 			// the chart SVG element
 			this.graph = container.append("svg")
 					.attr("class", "d3-diagram")
-					.data(values)
-					// the chart canvas
-					.append("g")
+					.data(values);
+
+			// the chart canvas
+			var chartCanvas = this.graph.append("g")
 					.attr("width", this.width).attr("height", this.height)
 				// position the basic chart canvas within the parent container
 					.attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
 
 			// the clip path; helps preventing stuff from leaking outside the chart canvas
-			this.graph.append("clipPath")
+			chartCanvas.append("clipPath")
 					.attr("id", "clip")
 					.append("rect")
 					.attr("width", this.width)
@@ -74,11 +75,11 @@
 
 			// the axes; need to be drawn before the actual graph elements, otherwise these would be shown behind the
 			// axes/vertical help lines for the axes
-			this.graph.append("g")
+			chartCanvas.append("g")
 					.attr("class", "x axis")
 					.attr("transform", "translate(0," + this.height + ")")
 					.call(xAxis);
-			this.graph.append("g")
+			chartCanvas.append("g")
 					.attr("class", "y axis")
 					.attr("transform", "translate(" + this.width + ",0)")
 					.call(yAxis);
@@ -94,7 +95,7 @@
 						return y(d[1]);
 					});
 			// the line path
-			this.graph.append("path")
+			chartCanvas.append("path")
 					.attr("class", "line")
 					.attr("clip-path", "url(#clip)")
 					.attr("d", line(values));
@@ -109,10 +110,67 @@
 					.y1(function (d) {
 						return y(d[1]);
 					});
-			this.graph.append("path")
+			chartCanvas.append("path")
 					.attr("class", "area")
 					.attr("clip-path", "url(#clip)")
 					.attr("d", area(values));
+
+
+			var position = JSONdata["simulation"]["0"]["position"];
+			var positionMarker = L.circleMarker(new L.LatLng(position['lat'], position['lon']), {
+				clickable: false
+			});
+
+			// the marker at the currently selected datum
+			var focus = chartCanvas.append("g")
+					.attr("class", "focus")
+					.style("display", null);
+			focus.append("circle")
+					.attr("r", 4.5);
+			focus.append("text")
+					.attr("x", 9)
+					.attr("dy", ".35em");
+
+			var bisectValues = d3.bisector(function (d) {
+				return d[0];
+			}).left;
+			// the overlay for the graph for displaying tooltips. We need a separate layer for that so we have a
+			// completely sensitive area; otherwise, only the visible/drawn parts of the used layer would be sensitive
+			// to mouse movements
+			var overlay = this.graph.append("rect")
+					.attr("class", "overlay")
+					.attr("width", this.width).attr("height", this.height)
+					.attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")")
+					.on("mouseover", function () {
+						focus.style("display", null);
+						positionMarker.addTo(map);
+					})
+					.on("mouseout", function () {
+						focus.style("display", "none");
+						map.removeLayer(map);
+					})
+					.on("mousemove", function (e) {
+						// cf. http://bl.ocks.org/mbostock/3902569
+						// we get a raw value from x.invert, so we first need to find the correct value by bisecting the
+						// values array. The returned index might point to either the left or right value, so we need
+						// to check which is nearer
+						var interpolatedTime = x.invert(d3.mouse(this)[0]) * 1000,
+								i = bisectValues(values, interpolatedTime, 1),
+								leftValue = values[i - 1],
+								rightValue = values[i],
+								actualValue = (interpolatedTime - leftValue[0] > rightValue[0] - interpolatedTime)
+										? rightValue : leftValue;
+						if (typeof(actualValue) != "undefined") {
+							var dataEntry = JSONdata["simulation"][actualValue[0]];
+							var position = dataEntry["position"];
+							positionMarker.setLatLng(new L.LatLng(position['lat'], position['lon']));
+							focus.select("text").text(dataEntry["speed"].toFixed(1) + " m/s ("
+									+ (dataEntry["speed"] * 3.6).toFixed(1) + " km/h)"
+							);
+							// TODO update text position if we are too far to the right
+							focus.attr("transform", "translate(" + d3.mouse(this)[0] + "," + y(actualValue[1]) + ")");
+						}
+					});
 		},
 
 		getVelocityOverTime: function (data) {
