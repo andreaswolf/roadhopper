@@ -107,12 +107,18 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 		}
 		val futures = new ListBuffer[Future[Any]]()
 
-		futures.append(vehicle ? GetStatus() andThen {
-			case Success(status @ JourneyStatus(statusTime, state, travelledDistance)) =>
-				log.debug(f"to travel: ${Math.abs(travelledDistance - length)}%.2f")
-				if (state.speed == 0.0 && Math.abs(travelledDistance - length) < 1.5) {
-					active = false
-					timer ! Stop()
+		val statusFuture: Future[JourneyStatus] = (vehicle ? GetStatus()).asInstanceOf[Future[JourneyStatus]]
+		futures.append(statusFuture)
+
+		// react to the journey status we got
+		futures.append(statusFuture flatMap { status: JourneyStatus =>
+				Future {
+					log.debug(f"to travel: ${Math.abs(status.travelledDistance - length)}%.2f")
+
+					if (status.vehicleState.speed == 0.0 && Math.abs(status.travelledDistance - length) < 1.5) {
+						active = false
+						timer ! Stop()
+					}
 				}
 		})
 		futures.append(timer ? ScheduleStep(time + 10, self))
@@ -135,10 +141,7 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 
 		// there are more segments ahead, so just continue with the next one
 		if (remainingSegments.nonEmpty) {
-			// TODO this brings a slight inaccuracy into the calculation, which will lead to longer travelling
-			// distances. The difference is negligible for long segments, but for many consecutive short segments,
-			// we might get a larger offset
-			travelledUntilCurrentSegment = position
+			travelledUntilCurrentSegment += currentSegment.length
 
 			val nextSegment = remainingSegments.head
 
@@ -148,7 +151,7 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 			currentSegment = nextSegment
 			remainingSegments = remainingSegments.tail
 
-			log.debug("RoadSegment ended, new segment length: " + currentSegment.length.round)
+			log.debug("RoadSegment ended, new segment length: " + currentSegment.length.formatted("%.2f"))
 			log.debug("Remaining segments: " + remainingSegments.length)
 
 			true
