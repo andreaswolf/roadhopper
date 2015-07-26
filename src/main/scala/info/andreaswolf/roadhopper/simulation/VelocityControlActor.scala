@@ -141,10 +141,6 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 
 	startWith(Idle, Uninitialized)
 
-	// TODO remove these properties
-	var _targetVelocity = 0.0
-	var _vehicleStatus = null
-
 
 	/**
 	 * Event handlers for the Idle state
@@ -157,7 +153,6 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 
 		case Event(SetTargetVelocity(velocity), data) =>
 			log.debug("Setting target velocity")
-			targetVelocity = velocity
 
 			// replying() is necessary because the FSM user uses ask() to keep control flow in sync
 			goto(Free) using new TargetVelocity(velocity, data) replying (true)
@@ -259,12 +254,6 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 					log.info("Acceleration was set")
 			}
 			log.debug("After setting acceleration")
-			nextStateData match {
-				case TargetVelocity(velocity, _) =>
-					targetVelocity = velocity
-
-				case x => log.warning("Unrecognized input in transition Idle→Free: " + x)
-			}
 
 		case Free -> StopAtPosition =>
 			log.debug("Switching state: Free → StopAtPosition")
@@ -334,13 +323,6 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 		}
 	}
 
-
-	def targetVelocity = _targetVelocity
-
-	def targetVelocity_=(velocity: Double): Unit = {
-		_targetVelocity = velocity
-		log.debug(s"Setting target velocity to ${_targetVelocity}")
-	}
 
 
 	log.debug("Creating velocity control actor")
