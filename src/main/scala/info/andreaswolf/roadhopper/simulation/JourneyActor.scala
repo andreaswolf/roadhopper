@@ -7,7 +7,6 @@ import info.andreaswolf.roadhopper.road.{RoadSegment, Route}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Future, ExecutionContext}
-import scala.util.Success
 
 case class RequestRoadAhead(position: Int)
 
@@ -45,14 +44,17 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 			val offsetOnCurrentSegment = travelledDistance - travelledUntilCurrentSegment
 
 			val segmentsAhead = new ListBuffer[RoadSegment]
-			segmentsAhead append RoadSegment.fromExisting(offsetOnCurrentSegment, currentSegment)
-			currentPosition = Some(segmentsAhead.head.start)
+			// rare edge case: we travelled exactly to the end of the segment => we must skip it here
+			if (remainingOnCurrentSegment > 0.0) {
+				segmentsAhead append RoadSegment.fromExisting(offsetOnCurrentSegment, currentSegment)
+			}
 			remainingSegments.foreach(segment => {
 				if (lengthToGet > 0) {
 					segmentsAhead append segment
 					lengthToGet -= segment.length
 				}
 			})
+			currentPosition = Some(segmentsAhead.head.start)
 			// if there are no more journey parts left after the current ones, this journey will end
 			val journeyEndsAfterFilteredSegments: Boolean = remainingSegments.length == segmentsAhead.length - 1
 
@@ -134,8 +136,8 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 	 * @return true if we are still within the road to travel, false if the journey has ended
 	 */
 	def checkCurrentSegment(position: Double): Boolean = {
-		// are we beyond the current segment’s end?
-		if (position <= travelledUntilCurrentSegment + currentSegment.length) {
+		// are we at or beyond the current segment’s end?
+		if (position < travelledUntilCurrentSegment + currentSegment.length) {
 			return true
 		}
 
