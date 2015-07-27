@@ -89,7 +89,7 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D, val speedLimit: Doub
 	extends RoutePart {
 
 	def this(start: GHPoint3D, base: RoadSegment) {
-		this(start, base.end)
+		this(start, base.end, base.speedLimit)
 		roadSign = base.roadSign
 	}
 
