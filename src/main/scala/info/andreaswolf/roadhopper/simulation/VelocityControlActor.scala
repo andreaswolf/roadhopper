@@ -183,7 +183,6 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 	 */
 	when(Free) {
 		case Event(TellVehicleStatus(state, travelledDistance), TargetVelocity(velocity, _)) =>
-			log.debug(s"Received vehicle status; aiming for $velocity")
 
 			adjustAccelerationForFreeDriving(travelledDistance, velocity, state)
 
@@ -191,13 +190,12 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 			stay() using (new TargetVelocity(velocity, new JourneyStatus(0, state, travelledDistance))) replying (true)
 
 		case Event(TellVehicleStatus(state, travelledDistance), StopPosition(position, _, _)) =>
-			log.debug(s"Received vehicle status; stopping at $position")
 			// TODO check how far we are from the stop position; if we reach it within a defined timespan, we should switch
 			// over to state "StopAtPosition"
 
 			stay() replying (true)
 
-		case Event(TellRoadAhead(road), data @ TargetVelocity(velocity, _)) =>
+		case Event(TellRoadAhead(road), data @ TargetVelocity(velocity, journeyStatus)) =>
 			var length = 0.0
 			var newState: State = null
 
@@ -229,7 +227,7 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 				)
 			}
 			if (newState == null) {
-				newState = stay() replying (true)
+				newState = stay() using (TargetVelocity(road.roadParts.head.speedLimit, journeyStatus)) replying (true)
 			}
 			newState
 
@@ -257,10 +255,10 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 			adjustAccelerationForStopAtPosition(travelledDistance, stateData, state)
 
 
-		case Event(TellRoadAhead(road), _) =>
-			// TODO no need to do anything here?
+		case Event(TellRoadAhead(road), stateData @ StopPosition(stopPosition, _, journeyStatus)) =>
+			// TODO anything else to do here?
 
-			stay() replying (true)
+			stay() using (StopPosition(stopPosition, road.roadParts.head.speedLimit, journeyStatus)) replying (true)
 	}
 
 	onTransition {
@@ -282,7 +280,7 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 	def adjustAccelerationForFreeDriving(currentPosition: Double, targetVelocity: Double, vehicleState: VehicleState) = {
 
 		// TODO check remaining distance on journey
-		val delta_v = (targetVelocity - vehicleState.speed)
+		val delta_v = targetVelocity - vehicleState.speed
 
 		val accelerationFuture: Future[Any] = {
 			delta_v match {
@@ -328,8 +326,8 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 		val journeyStatus: JourneyStatus = new JourneyStatus(0, vehicleState, currentPosition)
 
 		if (vehicleState.speed == 0.0 && distanceToStop < 1.1) {
-			// TODO use the real target velocity here; also use the correct time in JourneyStatus or get rid of the time completely
-			goto(Free) using (TargetVelocity(15, journeyStatus)) replying (true)
+			// TODO use the correct time in JourneyStatus or get rid of the time completely
+			goto(Free) using (TargetVelocity(stateData.velocity, journeyStatus)) replying (true)
 		} else {
 			stay() using (new StopPosition(journeyStatus, stateData)) replying (true)
 		}
