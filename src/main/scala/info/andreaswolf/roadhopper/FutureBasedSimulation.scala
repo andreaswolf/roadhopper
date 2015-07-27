@@ -17,10 +17,6 @@ import scala.util.{Failure, Success}
 
 class ExtensionComponent(val timer: ActorRef) extends SimulationActor {
 
-	import VelocityControlActor._
-
-	val velocityControl = context.actorOf(Props(new VelocityControlActor(timer)), "velocityControl")
-
 	/**
 	 * Handler for [[Start]] messages.
 	 * <p/>
@@ -32,7 +28,6 @@ class ExtensionComponent(val timer: ActorRef) extends SimulationActor {
 		log.debug("Initializing " + self.path)
 
 		Future.sequence(List(
-			velocityControl ? SetTargetVelocity(15),
 			timer ? ScheduleStep(100, self)
 		))
 	}
@@ -41,15 +36,7 @@ class ExtensionComponent(val timer: ActorRef) extends SimulationActor {
 		log.debug("foo")
 
 		Future.sequence(List(
-			timer ? ScheduleStep(time + 100, self),
-			velocityControl ? TellVehicleStatus(new VehicleState(1.0, 10.0, Math.PI, None), 100.0),
-			{
-				if (time == 1000) {
-					velocityControl ? SetStopPosition(100.0)
-				} else {
-					Future.successful()
-				}
-			}
+			timer ? ScheduleStep(time + 100, self)
 		))
 	}
 
