@@ -282,17 +282,18 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 		// TODO check remaining distance on journey
 		val delta_v = targetVelocity - vehicleState.speed
 
-		val accelerationFuture: Future[Any] = {
-			delta_v match {
-				case x if x > 15 => vehicle ? SetAcceleration(2.0)
-				case x if x > 5 => vehicle ? SetAcceleration(1.0)
-				case x if x > 1 => vehicle ? SetAcceleration(0.5)
-				case x if x > 0.25 => vehicle ? SetAcceleration(0.25)
-				case x if x > 0 => vehicle ? SetAcceleration(0.05)
-				case x if x < 0 => vehicle ? SetAcceleration(-0.05)
+		val acceleration: Double = delta_v.signum * {
+			delta_v.abs match {
+				case x if x > 15 => 2.0
+				case x if x > 5 => 1.0
+				case x if x > 1 => 0.5
+				case x if x > 0.25 => 0.25
+				case x if x > 0 => 0.05
 			}
 		}
+		val accelerationFuture = vehicle ? SetAcceleration(acceleration)
 
+		Await.result(accelerationFuture, 1 second)
 	}
 
 	def adjustAccelerationForStopAtPosition(currentPosition: Double, stateData: StopPosition, vehicleState: VehicleState): State = {
@@ -307,19 +308,21 @@ class VelocityControlActor(val timer: ActorRef, val vehicle: ActorRef)
 		// stop one meter before the actual point
 		val requiredDeceleration = vehicleState.speed * vehicleState.speed / (2 * (distanceToStop - 1))
 
-		val decelerationFuture: Future[Any] = {
+		val deceleration: Double = {
 			requiredDeceleration match {
-				case x if x > 1.5 => vehicle ? SetAcceleration(-2.0)
-				case x if x > 1.0 => vehicle ? SetAcceleration(0.0)
+				case x if x > 1.5 => -2.0
+				case x if x > 1.0 => 0.0
 				// TODO 10m is just a guess; check this again
-				case x if x < 0.4 && distanceToStop < 10.0 => vehicle ? SetAcceleration(-0.2)
-				case x if x < 0.05 && distanceToStop < 10.0 => vehicle ? SetAcceleration(-0.05)
-				case x if x < 0 => vehicle ? SetAcceleration(0.05)
-				case x => Future.successful() // do nothing
+				case x if x < 0.4 && distanceToStop < 10.0 => -0.2
+				case x if x < 0.05 && distanceToStop < 10.0 => -0.05
+				case x if x <= 0.0 => 0.05
+					// prevent some hiccups with the vehicle randomly stopping a few meters before a stop point
+				case x => 0.1
 			}
 		}
+		val decelerationFuture: Future[Any] = vehicle ? SetAcceleration(deceleration)
 		log.debug(f"Remaining until stop position: $distanceToStop%.2f, current speed: ${vehicleState.speed}%.2f, " +
-			f"required deceleration: $requiredDeceleration%.2f")
+			f"required deceleration: $requiredDeceleration%.2f; deceleration: $deceleration%.2f")
 
 		Await.result(decelerationFuture, 1 second)
 
