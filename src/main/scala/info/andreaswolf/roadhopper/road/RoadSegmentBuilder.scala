@@ -17,16 +17,21 @@ class RoadSegmentBuilder {
 	private var _end: Option[GHPoint3D] = None
 
 	def start = _start
-	def start(point: GHPoint3D): RoadSegmentBuilder = this.start = point
-	def start_=(point: GHPoint3D): RoadSegmentBuilder = {
-		_start = Some(point)
+
+	def start_=(point: GHPoint3D) = _start = Some(point)
+
+	def start(point: GHPoint3D): RoadSegmentBuilder = {
+		this.start = point
 		this
 	}
 
+
 	def end = _start
-	def end(point: GHPoint3D): RoadSegmentBuilder = this.end = point
-	def end_=(point: GHPoint3D): RoadSegmentBuilder = {
-		_end = Some(point)
+
+	def end_=(point: GHPoint3D) = _end = Some(point)
+
+	def end(point: GHPoint3D): RoadSegmentBuilder = {
+		this.end = point
 		this
 	}
 
