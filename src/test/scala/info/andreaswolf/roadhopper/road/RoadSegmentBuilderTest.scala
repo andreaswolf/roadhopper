@@ -37,6 +37,30 @@ class RoadSegmentBuilderTest extends FunSuite with Matchers {
 		assert(result.end == b)
 	}
 
+	test("Start can be given as coordinates") {
+		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
+		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
+
+		val subject = new RoadSegmentBuilder
+		val result = subject.start(49.0, 8.0, 0.0).end(b).build
+
+		assert(result.isInstanceOf[RoadSegment])
+		assert(result.start == a)
+		assert(result.end == b)
+	}
+
+	test("End can be given as coordinates") {
+		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
+		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
+
+		val subject = new RoadSegmentBuilder
+		val result = subject.start(a).end(49.01, 8.01, 0.0).build
+
+		assert(result.isInstanceOf[RoadSegment])
+		assert(result.start == a)
+		assert(result.end == b)
+	}
+
 	test("Constructed segment has speed limit if defined") {
 		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
 		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)

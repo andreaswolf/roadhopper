@@ -27,6 +27,11 @@ class RoadSegmentBuilder {
 		this
 	}
 
+	def start(lat: Double, lon: Double, ele: Double): RoadSegmentBuilder = {
+		this.start = new GHPoint3D(lat, lon, ele)
+		this
+	}
+
 
 	def end = _start
 
@@ -34,6 +39,11 @@ class RoadSegmentBuilder {
 
 	def end(point: GHPoint3D): RoadSegmentBuilder = {
 		this.end = point
+		this
+	}
+
+	def end(lat: Double, lon: Double, ele: Double): RoadSegmentBuilder = {
+		this.end = new GHPoint3D(lat, lon, ele)
 		this
 	}
 
