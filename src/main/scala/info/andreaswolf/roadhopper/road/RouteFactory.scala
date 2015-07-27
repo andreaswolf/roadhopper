@@ -6,12 +6,15 @@ import com.graphhopper.storage.extensions.RoadSignEncoder
 import com.graphhopper.util.shapes.{GHPoint, GHPoint3D}
 import info.andreaswolf.roadhopper.RoadHopper
 import info.andreaswolf.roadhopper.server.RouteCalculator
+import org.slf4j.LoggerFactory
 
 import util.control.Breaks._
 import scala.collection.convert.decorateAll._
 import scala.collection.mutable.ListBuffer
 
 class RouteFactory(val hopper: RoadHopper) {
+
+	val log = LoggerFactory.getLogger("RouteFactory")
 
 	val calculator = new RouteCalculator(hopper)
 	calculator.setLocale("de")
@@ -28,12 +31,18 @@ class RouteFactory(val hopper: RoadHopper) {
 		var lastPoint: Option[GHPoint3D] = None
 
 		val signEncoder: RoadSignEncoder = new RoadSignEncoder(hopper.getGraph)
+		// TODO make the encoder name configurable
+		val flagEncoder = hopper.getGraph.getEncodingManager.getEncoder("car")
 		val nodeAccess: NodeAccess = hopper.getGraph.getNodeAccess
 
 		for (i <- paths.indices) {
 			// NOTE the first and last edges might be incomplete, as we enter the road through it! -> conclusion: do not use
 			// the edges for any calculations, but instead rely on the points
 			for (edge <- paths.get(i).calcEdges()) {
+				val flags = hopper.getQueryGraph.getEdgeProps(edge.getEdge, edge.getAdjNode).getFlags
+				val maximumSpeed = flagEncoder.getSpeed(flags) / 3.6 // speed is stored in km/h, but we need m/s
+				log.debug(f"Found edge properties for edge ${edge.getEdge} with max speed $maximumSpeed%.2f m/s")
+
 				// TODO move creating the road segments for one edge to a separate method
 				for (point <- edge.fetchWayGeometry(3)) {
 					breakable {
@@ -42,7 +51,11 @@ class RouteFactory(val hopper: RoadHopper) {
 						}
 
 						lastPoint.foreach(p => {
-							segments append RoadSegment.fromCoordinates(p.getLat, p.getLon, point.getLat, point.getLon)
+							segments append new RoadSegmentBuilder()
+								.start(p.getLat, p.getLon, p.getEle)
+								.end(point.getLat, point.getLon, point.getEle)
+								.speedLimit(maximumSpeed)
+								.build
 						})
 						lastPoint = Some(point)
 					}
