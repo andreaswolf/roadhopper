@@ -137,7 +137,7 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 	 */
 	def checkCurrentSegment(position: Double): Boolean = {
 		// are we at or beyond the current segment’s end?
-		if (position < travelledUntilCurrentSegment + currentSegment.length) {
+		if (travelledUntilCurrentSegment + currentSegment.length - position > 10e-3) {
 			return true
 		}
 
