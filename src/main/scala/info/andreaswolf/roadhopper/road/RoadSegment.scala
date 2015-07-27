@@ -85,7 +85,8 @@ object RoadSegment {
 /**
  *
  */
-class RoadSegment(val start: GHPoint3D, val end: GHPoint3D) extends RoutePart {
+class RoadSegment(val start: GHPoint3D, val end: GHPoint3D, val speedLimit: Double = 50 / 3.6)
+	extends RoutePart {
 
 	def this(start: GHPoint3D, base: RoadSegment) {
 		this(start, base.end)

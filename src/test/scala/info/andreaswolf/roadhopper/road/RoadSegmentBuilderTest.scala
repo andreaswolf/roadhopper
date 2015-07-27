@@ -37,4 +37,14 @@ class RoadSegmentBuilderTest extends FunSuite with Matchers {
 		assert(result.end == b)
 	}
 
+	test("Constructed segment has speed limit if defined") {
+		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
+		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
+
+		val subject = new RoadSegmentBuilder
+		val result = subject.start(a).end(b).speedLimit(20).build
+
+		assert(result.speedLimit == 20)
+	}
+
 }

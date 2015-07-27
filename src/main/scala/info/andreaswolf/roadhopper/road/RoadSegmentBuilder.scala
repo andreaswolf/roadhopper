@@ -16,6 +16,8 @@ class RoadSegmentBuilder {
 	private var _start: Option[GHPoint3D] = None
 	private var _end: Option[GHPoint3D] = None
 
+	private var _speedLimit: Option[Double] = None
+
 	def start = _start
 
 	def start_=(point: GHPoint3D) = _start = Some(point)
@@ -35,5 +37,22 @@ class RoadSegmentBuilder {
 		this
 	}
 
-	def build = RoadSegment.fromPoints(_start.get, _end.get)
+
+	def speedLimit = _speedLimit
+
+	def speedLimit_=(speed: Double) = _speedLimit = Some(speed)
+
+	def speedLimit(speed: Double): RoadSegmentBuilder = {
+		this.speedLimit = speed
+		this
+	}
+
+
+	def build = {
+		if (_speedLimit.isDefined) {
+			new RoadSegment(_start.get, _end.get, speedLimit = _speedLimit.get)
+		} else {
+			RoadSegment.fromPoints(_start.get, _end.get)
+		}
+	}
 }

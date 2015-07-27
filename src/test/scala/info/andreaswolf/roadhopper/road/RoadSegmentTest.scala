@@ -44,4 +44,20 @@ class RoadSegmentTest extends FunSuite {
 		assert(new RoadSegment(a, b) != new RoadSegment(b, a))
 	}
 
+	test("Default speed limit is 50 km/h") {
+		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
+		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
+		val subject = new RoadSegment(a, b)
+
+		assert(subject.speedLimit == 50 / 3.6)
+	}
+
+	test("Speed limit can be set in constructor") {
+		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
+		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
+		val subject = new RoadSegment(a, b, speedLimit = 20.0)
+
+		assert(subject.speedLimit == 20.0)
+	}
+
 }
