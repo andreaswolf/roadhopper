@@ -29,33 +29,25 @@ with WordSpecLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 	"JourneyActor" must {
 		"must return all segments at beginning of road" in new TestCase {
 			val route = new RoadBuilder(new GHPoint3D(49.0, 8.0, 0.0)) addSegment(100, 0.0) addSegment(200, 20.0) buildRoute
-			val subject = system.actorOf(Props(new TwoStepJourneyActor(TestProbe().ref, TestProbe().ref, route)), "subject")
+			val subject = system.actorOf(Props(new TwoStepJourneyActor(TestProbe().ref, TestProbe().ref, route)))
 
 			val response = subject ? RequestRoadAhead(0)
 			Await.ready(response, 1 seconds)
 
-			response onComplete {
-				case Success(RoadAhead(_, roadAhead, _)) =>
-					assert(route.getRoadSegments == roadAhead)
-				case x =>
-					fail("Did not get expected result from RequestRoadAhead()")
-			}
+			val Success(RoadAhead(_, roadAhead, _)) = response.value.get
+			assert(route.getRoadSegments == roadAhead)
 		}
 
 		"must return only the second segment when the first segment has passed" in new TestCase {
 			val route = new RoadBuilder(new GHPoint3D(49.0, 8.0, 0.0)) addSegment(100, 0.0) addSegment(200, 20.0) buildRoute
-			val subject = system.actorOf(Props(new TwoStepJourneyActor(TestProbe().ref, TestProbe().ref, route)), "subject")
+			val subject = system.actorOf(Props(new TwoStepJourneyActor(TestProbe().ref, TestProbe().ref, route)))
 
 			val response = subject ? RequestRoadAhead(100)
-			Await.ready(response, 1 seconds)
+			Await.ready(response, 1 second)
 
-			response onComplete {
-				case Success(RoadAhead(_, roadAhead, _)) =>
-					assert(roadAhead.length == 1)
-					assert(roadAhead.head == route.getRoadSegments.apply(1))
-				case x =>
-					fail("Did not get expected result from RequestRoadAhead()")
-			}
+			val Success(RoadAhead(_, roadAhead, _)) = response.value.get
+			assert(roadAhead.length == 1)
+			assert(roadAhead.head == route.getRoadSegments.apply(1))
 		}
 	}
 
