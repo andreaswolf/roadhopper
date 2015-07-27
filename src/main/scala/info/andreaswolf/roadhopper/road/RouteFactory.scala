@@ -92,12 +92,11 @@ class RouteFactory(val hopper: RoadHopper) {
 			// make sure we have a small change in orientation and the last segment has no road sign at the end
 			if (lastSegment.roadSign.isEmpty && Math.abs(
 					(lastSegment.orientation - currentSegment.orientation).toDegrees
-				) < delta) {
+				) < delta && lastSegment.speedLimit == currentSegment.speedLimit) {
 
-				val totalLength = lastSegment.length + currentSegment.asInstanceOf[RoadSegment].length
-				val mediumOrientation = (lastSegment.orientation + currentSegment.asInstanceOf[RoadSegment].orientation) / 2
-
-				val newSegment: RoadSegment = RoadSegment.fromPoints(lastSegment.start, currentSegment.asInstanceOf[RoadSegment].end)
+				val newSegment: RoadSegment = new RoadSegment(
+					lastSegment.start, currentSegment.end, currentSegment.speedLimit
+				)
 				newSegment.setRoadSign(currentSegment.roadSign)
 				segments update(0, newSegment)
 			} else {
