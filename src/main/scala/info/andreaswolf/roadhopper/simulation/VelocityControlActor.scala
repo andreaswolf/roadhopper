@@ -62,10 +62,10 @@ object VelocityControlActor {
 
 	case object Uninitialized extends Data(new JourneyStatus(0, VehicleState.getDefault(), 0.0), 0)
 
-	case class TargetVelocity(velocity: Int, override val status: JourneyStatus)
+	case class TargetVelocity(velocity: Double, override val status: JourneyStatus)
 		extends Data(status, status.travelledDistance) {
 
-		def this(velocity: Int, data: Data) = this(velocity, data.status)
+		def this(velocity: Double, data: Data) = this(velocity, data.status)
 	}
 
 	/**
@@ -114,7 +114,7 @@ object VelocityControlActor {
 	 * Set the velocity we should aim for. There is no guarantee that this will ever be reached, but if possible,
 	 * it should.
 	 */
-	case class SetTargetVelocity(velocity: Int) extends Event
+	case class SetTargetVelocity(velocity: Double) extends Event
 
 	/**
 	 * Sets the position where we should stop. The vehicle will stop in any case, unless a different message is received
