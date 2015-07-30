@@ -81,11 +81,8 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
 	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
 	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
-		currentTime = time
+	override def stepUpdate()(implicit exec: ExecutionContext): Future[Any] = Future {
 		if (currentPosition.isDefined) {
 			vehicle ? UpdatePosition(currentPosition.get)
 		} else {
@@ -100,10 +97,8 @@ class TwoStepJourneyActor(val timer: ActorRef, val vehicle: ActorRef, val route:
 	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
 	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
 	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+	override def stepAct()(implicit exec: ExecutionContext): Future[Any] = {
 		if (!active) {
 			return Future.successful()
 		}

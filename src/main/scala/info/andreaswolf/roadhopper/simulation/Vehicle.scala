@@ -90,10 +90,8 @@ class TwoStepVehicleActor(val timer: ActorRef, val initialOrientation: Double = 
 	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
 	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
 	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepUpdate(time: Int)(implicit exec: ExecutionContext) = Future.sequence(List(
+	override def stepUpdate()(implicit exec: ExecutionContext) = Future.sequence(List(
 		Future {
 			val oldSpeed = speed
 			if (acceleration < 0.0) {

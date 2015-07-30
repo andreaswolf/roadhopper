@@ -88,13 +88,23 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 			// we can be sure that there is a list, thus we can use .get
 			val actorsToCall = timeSchedule.remove(nextTime).get.distinct
 
-			val actorFutures = new ListBuffer[Future[Any]]()
-			actorsToCall.foreach(actor => {
-				actorFutures.append(actor ? StepUpdate(currentTime))
-			})
-			// wait for the result of the StepUpdate messages ...
-			Future.sequence(actorFutures.toList).andThen({
-				// ... and then run the StepAct messages
+			{
+				// tell time to actors…
+				val actorFutures = new ListBuffer[Future[Any]]()
+				actors.foreach { actor => actorFutures.append(actor ? TellTime(currentTime)) }
+				// wait for the result of the StepUpdate messages ...
+				Future.sequence(actorFutures.toList)
+			} flatMap {
+				case tellTimeResult =>
+					// … call update step …
+					val actorFutures = new ListBuffer[Future[Any]]()
+					actorsToCall.foreach(actor => {
+						actorFutures.append(actor ? StepUpdate(currentTime))
+					})
+					// wait for the result of the StepUpdate messages ...
+					Future.sequence(actorFutures.toList)
+			} map {
+				// … and then call act step
 				case updateResult =>
 					if (running) {
 						// if the simulation ended during the update step, continuing here would raise an exception.
@@ -102,7 +112,7 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 						// TODO find a way to only schedule the simulation end during the update step and continue until after the
 						// next step
 
-						actorFutures.clear()
+						val actorFutures = new ListBuffer[Future[Any]]()
 						actorsToCall.foreach(actor => {
 							actorFutures.append(actor ? StepAct(currentTime))
 						})
@@ -116,7 +126,7 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 								}
 						})
 					}
-			})
+			}
 		}
 
 		callActors()

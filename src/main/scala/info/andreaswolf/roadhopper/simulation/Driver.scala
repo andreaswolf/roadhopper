@@ -39,10 +39,8 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
 	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
 	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+	override def stepAct()(implicit exec: ExecutionContext): Future[Any] = {
 		currentTime = time
 
 		// Get the current vehicle status and act accordingly

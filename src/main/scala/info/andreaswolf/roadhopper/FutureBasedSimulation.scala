@@ -32,7 +32,7 @@ class ExtensionComponent(val timer: ActorRef) extends SimulationActor {
 		))
 	}
 
-	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+	override def stepUpdate()(implicit exec: ExecutionContext): Future[Any] = {
 		log.debug("foo")
 
 		Future.sequence(List(
@@ -40,7 +40,7 @@ class ExtensionComponent(val timer: ActorRef) extends SimulationActor {
 		))
 	}
 
-	override def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
+	override def stepAct()(implicit exec: ExecutionContext): Future[Any] = Future {
 		log.debug("bar")
 	}
 }
@@ -64,10 +64,8 @@ class AnotherComponent(val timer: ActorRef) extends SimulationActor {
 	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
 	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
 	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = {
+	override def stepUpdate()(implicit exec: ExecutionContext): Future[Any] = {
 		log.debug(f"AnotherComponent::StepUpdate $time")
 		foo += 1
 		Future.sequence(List(
@@ -86,10 +84,8 @@ class AnotherComponent(val timer: ActorRef) extends SimulationActor {
 	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
 	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
 	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
 	 */
-	override def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future {
+	override def stepAct()(implicit exec: ExecutionContext): Future[Any] = Future {
 		log.debug(f"AnotherComponent::StepAct $time")
 		Thread.sleep(150)
 		log.debug(f"foo: $foo")

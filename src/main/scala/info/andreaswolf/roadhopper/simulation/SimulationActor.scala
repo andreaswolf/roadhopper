@@ -7,6 +7,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 
+case class TellTime(time: Int)
+
 case class Start()
 
 case class StepUpdate(time: Int)
@@ -29,6 +31,11 @@ trait SimulationActor extends Actor with ActorLogging {
 	import context.dispatcher
 
 	/**
+	 * The current time in milliseconds
+	 */
+	var time: Int = 0
+
+	/**
 	 * The list of message handlers. By default, it contains handlers for the basic simulation messages Start(),
 	 * StepUpdate() and StepAct()
 	 * <p/>
@@ -40,6 +47,10 @@ trait SimulationActor extends Actor with ActorLogging {
 	 */
 	var _receive : List[Receive] = List(
 		{
+			case TellTime(currentTime) =>
+				time = currentTime
+				sender() ! true
+
 			// TODO Make a method that creates a ListBuffer of Futures and turns them into a sequence that is then checked by the individual methods in here
 			case Start() =>
 				// we need to store sender() here as sender() will point to the dead letter mailbox when andThen() is called.
@@ -52,14 +63,14 @@ trait SimulationActor extends Actor with ActorLogging {
 
 			case StepUpdate(time) =>
 				val originalSender = sender()
-				stepUpdate(time) andThen {
+				stepUpdate() andThen {
 					case x =>
 						originalSender ! true
 				}
 
 			case StepAct(time) =>
 				val originalSender = sender()
-				stepAct(time) andThen {
+				stepAct() andThen {
 					case x =>
 						originalSender ! true
 				}
@@ -103,10 +114,8 @@ trait SimulationActor extends Actor with ActorLogging {
 	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
 	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
 	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
 	 */
-	def stepUpdate(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future.successful()
+	def stepUpdate()(implicit exec: ExecutionContext): Future[Any] = Future.successful()
 
 	/**
 	 * Handler for [[StepAct]] messages.
@@ -114,8 +123,6 @@ trait SimulationActor extends Actor with ActorLogging {
 	 * The simulation will only continue after the Future has been completed. You can, but don’t need to override this
 	 * method in your actor. If you don’t override it, the step will be completed immediately (by the successful Future
 	 * returned)
-	 *
-	 * @param time The current simulation time in milliseconds
 	 */
-	def stepAct(time: Int)(implicit exec: ExecutionContext): Future[Any] = Future.successful()
+	def stepAct()(implicit exec: ExecutionContext): Future[Any] = Future.successful()
 }
