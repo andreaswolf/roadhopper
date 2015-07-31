@@ -48,7 +48,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		val testReceiver = TestProbe()
 
 		val process = TestActorRef(new Process {
-			override def invoke(changedSignalName: String): Future[Any] = Future {
+			override def invoke(state: SignalState): Future[Any] = Future {
 				testReceiver.ref ! "invoked!"
 			}
 		})
@@ -62,19 +62,39 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		testReceiver.expectMsg("invoked!")
 	}
 
+	test("Updated signal values are passed to the process") {
+		val subject = TestActorRef(new SignalBus(new TestProbe(system).ref))
+
+		val testReceiver = TestProbe()
+
+		val process = TestActorRef(new Process {
+			override def invoke(state: SignalState): Future[Any] = Future {
+				testReceiver.ref ! state.signalValue("test").get
+			}
+		})
+
+		subject ? DefineSignal("test")
+		subject ? SubscribeToSignal("test", process)
+		// TODO this feels a bit weird because it is done outside the update cycle
+		subject ? UpdateSignalValue("test", 1.0)
+		subject ? StepUpdate(10)
+
+		testReceiver.expectMsg(1.0)
+	}
+
 	test("Updating another signal from a process triggers second delta cycle") {
 		val subject = TestActorRef(new SignalBus(new TestProbe(system).ref))
 
 		val testReceiver = TestProbe()
 
 		val firstProcess = TestActorRef(new Process {
-			override def invoke(changedSignalName: String): Future[Any] = {
+			override def invoke(state: SignalState): Future[Any] = {
 				testReceiver.ref ! "first invoked!"
 				subject ? UpdateSignalValue("second", 2.0)
 			}
 		})
 		val secondProcess = TestActorRef(new Process {
-			override def invoke(changedSignalName: String): Future[Any] = Future {
+			override def invoke(state: SignalState): Future[Any] = Future {
 				testReceiver.ref ! "second invoked!"
 			}
 		})
@@ -90,6 +110,55 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		testReceiver.expectMsg("first invoked!")
 		testReceiver.expectMsg("second invoked!")
 		// TODO test here if there were really two delta cycles involved!
+	}
+
+	test("Subscriber for two changed signals is only called once") {
+		val subject = TestActorRef(new SignalBus(new TestProbe(system).ref))
+
+		val testReceiver = TestProbe()
+
+		val process = TestActorRef(new Process {
+			override def invoke(state: SignalState): Future[Any] = {
+				testReceiver.ref ! "invoked!"
+				Future.successful()
+			}
+		})
+		subject ? DefineSignal("first")
+		subject ? DefineSignal("second")
+		subject ? SubscribeToSignal("first", process)
+		subject ? SubscribeToSignal("second", process)
+
+		subject ? UpdateSignalValue("first", 2.0)
+		subject ? UpdateSignalValue("second", 3.0)
+		subject ? StepUpdate(10)
+
+		testReceiver.expectMsg("invoked!")
+		testReceiver.expectNoMsg()
+	}
+
+	test("Unchanged signal values are carried through to the next time slot") {
+		val subject = TestActorRef(new SignalBus(new TestProbe(system).ref))
+
+		val testReceiver = TestProbe()
+
+		val process = TestActorRef(new Process {
+			override def invoke(state: SignalState): Future[Any] = {
+				testReceiver.ref ! state.signalValue("first").get
+				Future.successful()
+			}
+		})
+		subject ? DefineSignal("first")
+		subject ? DefineSignal("second")
+		subject ? SubscribeToSignal("first", process)
+		subject ? SubscribeToSignal("second", process)
+
+		subject ? UpdateSignalValue("first", 2.0)
+		subject ? StepUpdate(10)
+		subject ? UpdateSignalValue("second", 3.0)
+		subject ? StepUpdate(20)
+
+		testReceiver.expectMsg(2.0)
+		testReceiver.expectMsg(2.0)
 	}
 
 }

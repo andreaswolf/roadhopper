@@ -14,7 +14,7 @@ import scala.concurrent.Future
 
 object Process {
 
-	case class Invoke(changedSignalName: String)
+	case class Invoke(signalState: SignalState)
 
 }
 
@@ -35,9 +35,9 @@ abstract class Process extends Actor {
 			time = _time
 			sender() ! true
 
-		case Invoke(changedSignalName) =>
+		case Invoke(signalState) =>
 			val originalSender = sender()
-			invoke(changedSignalName) andThen {
+			invoke(signalState) andThen {
 				case x =>
 					originalSender ! true
 			}
@@ -45,8 +45,8 @@ abstract class Process extends Actor {
 	}
 
 	/**
-	 *
+	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
 	 */
-	def invoke(changedSignalName: String): Future[Any] = Future.successful()
+	def invoke(signals: SignalState): Future[Any] = Future.successful()
 
 }

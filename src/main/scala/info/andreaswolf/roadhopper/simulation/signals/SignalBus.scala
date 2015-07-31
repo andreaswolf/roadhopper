@@ -5,7 +5,6 @@ import akka.pattern.ask
 import info.andreaswolf.roadhopper.simulation.{ScheduleStep, SimulationActor}
 import info.andreaswolf.roadhopper.simulation.signals.Process.Invoke
 
-import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Promise, Future, ExecutionContext}
@@ -47,16 +46,25 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 		"time"
 	)
 
+	/**
+	 * The current signal state.
+	 *
+	 * TODO merge this with definedSignals
+	 */
+	var signals = new SignalState()
+
 	val subscribers: mutable.HashMap[String, ListBuffer[ActorRef]] = new mutable.HashMap[String, ListBuffer[ActorRef]]()
 
 	val scheduledUpdates: mutable.HashMap[String, AnyVal] = new mutable.HashMap[String, AnyVal]()
 
 	val currentTimeStepPromise: Promise[Any] = Promise.apply[Any]()
 
+
 	registerReceiver {
 		case DefineSignal(name) =>
 			if (!definedSignals.contains(name)) {
 				definedSignals += name
+				// TODO initialize signal in SignalState
 
 				sender() ! true
 			} else {
@@ -74,8 +82,8 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 			scheduledUpdates.put(name, value)
 
 			sender() ! true
-
 	}
+
 
 	/**
 	 * Handler for [[info.andreaswolf.roadhopper.simulation.Start]] messages.
@@ -113,10 +121,17 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 		}
 
 		{
-			val futures = ListBuffer[Future[Any]]()
-			scheduledUpdates.foreach[Unit] { case(name, value) =>
-				futures append updateValue(name, value)
-			}
+			signals = new SignalState(scheduledUpdates, signals)
+
+			val updatedSignals = scheduledUpdates.keys.toList
+			// get a list of all subscribers we must notify (by the signals that were updated) and then make sure that
+			// each is only called once (because they might be subscribed to multiple of the updated signals)
+			val subscribersToNotify = subscribers.filter(subscription =>
+				updatedSignals.contains(subscription._1)
+			).flatMap(e => e._2).toList.distinct
+			val futures = subscribersToNotify.map(subscriber => subscriber ? Invoke(signals))
+
+			log.info(s"Informed ${subscribersToNotify.length} subscribers about a change of ${updatedSignals.length} signals")
 
 			scheduledUpdates.clear()
 
@@ -125,19 +140,5 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 			// TODO can we make this non-recursive?
 			runDeltaCycle(cycles + 1)
 		}
-	}
-
-	/**
-	 * Invokes all subscribers for the given signal name
-	 */
-	protected def updateValue(signalName: String, signalValue: AnyVal): Future[Any] = {
-		def invokeSubscriber(subscriber: ActorRef): Future[Any] = {
-			subscriber ? Invoke(signalName)
-		}
-		val subscriberFutures: List[Future[Any]] = (for (subscriber <- subscribers.getOrElse(signalName, new ListBuffer[ActorRef]())) yield {
-			invokeSubscriber(subscriber)
-		}).toList
-		log.info(s"Informed ${subscriberFutures.length} subscribers about a change of signal $signalName")
-		Future.sequence(subscriberFutures)
 	}
 }
