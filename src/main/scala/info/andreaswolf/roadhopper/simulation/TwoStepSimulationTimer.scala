@@ -99,7 +99,7 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 					// … call update step …
 					val actorFutures = new ListBuffer[Future[Any]]()
 					actorsToCall.foreach(actor => {
-						actorFutures.append(actor ? StepUpdate(currentTime))
+						actorFutures.append(actor ? StepUpdate())
 					})
 					// wait for the result of the StepUpdate messages ...
 					Future.sequence(actorFutures.toList)
@@ -114,7 +114,7 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 
 						val actorFutures = new ListBuffer[Future[Any]]()
 						actorsToCall.foreach(actor => {
-							actorFutures.append(actor ? StepAct(currentTime))
+							actorFutures.append(actor ? StepAct())
 						})
 						// wait for the result of the StepAct messages
 						// TODO properly check for an error here -> transform this block to this:

@@ -11,9 +11,9 @@ case class TellTime(time: Int)
 
 case class Start()
 
-case class StepUpdate(time: Int)
+case class StepUpdate()
 
-case class StepAct(time: Int)
+case class StepAct()
 
 
 /**
@@ -61,14 +61,14 @@ trait SimulationActor extends Actor with ActorLogging {
 						originalSender ! true
 				}
 
-			case StepUpdate(time) =>
+			case StepUpdate() =>
 				val originalSender = sender()
 				stepUpdate() andThen {
 					case x =>
 						originalSender ! true
 				}
 
-			case StepAct(time) =>
+			case StepAct() =>
 				val originalSender = sender()
 				stepAct() andThen {
 					case x =>

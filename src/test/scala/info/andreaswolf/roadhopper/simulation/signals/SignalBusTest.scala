@@ -57,7 +57,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		subject ? SubscribeToSignal("test", process)
 		// TODO this feels a bit weird because it is done outside the update cycle
 		subject ? UpdateSignalValue("test", 1.0)
-		subject ? StepUpdate(10)
+		subject ? StepUpdate()
 
 		testReceiver.expectMsg("invoked!")
 	}
@@ -77,7 +77,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		subject ? SubscribeToSignal("test", process)
 		// TODO this feels a bit weird because it is done outside the update cycle
 		subject ? UpdateSignalValue("test", 1.0)
-		subject ? StepUpdate(10)
+		subject ? StepUpdate()
 
 		testReceiver.expectMsg(1.0)
 	}
@@ -105,7 +105,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		subject ? SubscribeToSignal("second", secondProcess)
 		// TODO this feels a bit weird because it is done outside the update cycle
 		subject ? UpdateSignalValue("test", 1.0)
-		subject ? StepUpdate(10)
+		subject ? StepUpdate()
 
 		testReceiver.expectMsg("first invoked!")
 		testReceiver.expectMsg("second invoked!")
@@ -130,7 +130,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 		subject ? UpdateSignalValue("first", 2.0)
 		subject ? UpdateSignalValue("second", 3.0)
-		subject ? StepUpdate(10)
+		subject ? StepUpdate()
 
 		testReceiver.expectMsg("invoked!")
 		testReceiver.expectNoMsg()
@@ -153,9 +153,9 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		subject ? SubscribeToSignal("second", process)
 
 		subject ? UpdateSignalValue("first", 2.0)
-		subject ? StepUpdate(10)
+		subject ? StepUpdate()
 		subject ? UpdateSignalValue("second", 3.0)
-		subject ? StepUpdate(20)
+		subject ? StepUpdate()
 
 		testReceiver.expectMsg(2.0)
 		testReceiver.expectMsg(2.0)
