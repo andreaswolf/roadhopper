@@ -15,6 +15,11 @@ object SignalBus {
 
 	case class DefineSignal(signalName: String)
 
+	/**
+	 * @param delta The time (from now on) when the signal should be updated
+	 */
+	case class ScheduleSignalUpdate(delta: Int, signalName: String, newValue: AnyVal)
+
 	case class UpdateSignalValue(signalName: String, newValue: AnyVal)
 
 	case class SubscribeToSignal(signalName: String, subscriber: ActorRef)
@@ -29,7 +34,6 @@ object SignalBus {
  *
  * Signals are declared by a component, other components can subscribe to them (= get notified when the signal changes).
  * With every new time step, an initial update is triggered with the components that listen to the time.
- * TODO add support for scheduling signal updates at a future time
  *
  * Every component can have one or more so-called processes that react to updates of one or more signals. With every
  * update of these signals, the process is triggered.
@@ -57,6 +61,8 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 
 	val scheduledUpdates: mutable.HashMap[String, AnyVal] = new mutable.HashMap[String, AnyVal]()
 
+	val futureScheduledUpdates: mutable.HashMap[Int, mutable.HashMap[String, AnyVal]] = new mutable.HashMap[Int, mutable.HashMap[String, AnyVal]]()
+
 	val currentTimeStepPromise: Promise[Any] = Promise.apply[Any]()
 
 
@@ -82,6 +88,14 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 			scheduledUpdates.put(name, value)
 
 			sender() ! true
+
+		case ScheduleSignalUpdate(delta, name, value) =>
+			val updatesForTime = futureScheduledUpdates.getOrElseUpdate(time + delta, new mutable.HashMap[String, AnyVal]())
+			// TODO check if there already is an update scheduled => how to react then?
+			updatesForTime.put(name, value)
+
+			sender() ! true
+
 	}
 
 
@@ -121,6 +135,10 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 		}
 
 		{
+			if (cycles == 1) {
+				scheduledUpdates.clear()
+				scheduledUpdates ++= futureScheduledUpdates.remove(time).getOrElse(new mutable.HashMap[String, AnyVal]())
+			}
 			signals = new SignalState(scheduledUpdates, signals)
 
 			val updatedSignals = scheduledUpdates.keys.toList

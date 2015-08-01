@@ -6,11 +6,13 @@
 
 package info.andreaswolf.roadhopper.simulation.signals
 
-import akka.actor.Actor
+import akka.actor.{ActorRef, Actor}
+import akka.util.Timeout
 import info.andreaswolf.roadhopper.simulation.TellTime
 import info.andreaswolf.roadhopper.simulation.signals.Process._
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 object Process {
 
@@ -23,9 +25,12 @@ object Process {
  *
  * The process subscribes to the signals it needs for its calculations and is notified by the signal bus each time a
  * signal changes.
+ *
+ * @param bus The signal bus instance. Optional.
  */
-abstract class Process extends Actor {
+abstract class Process(val bus: Option[ActorRef] = None) extends Actor {
 
+	implicit val timeout = Timeout(10 seconds)
 	import context.dispatcher
 
 	var time: Int = 0
@@ -48,5 +53,7 @@ abstract class Process extends Actor {
 	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
 	 */
 	def invoke(signals: SignalState): Future[Any] = Future.successful()
+
+	def invoke(signals: SignalState, bus: ActorRef): Future[Any] = Future.successful()
 
 }

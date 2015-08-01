@@ -11,7 +11,7 @@ import akka.pattern.ask
 import akka.testkit.{TestProbe, TestActorRef, ImplicitSender, TestKit}
 import akka.util.Timeout
 import info.andreaswolf.roadhopper.simulation.{TellTime, StepUpdate}
-import info.andreaswolf.roadhopper.simulation.signals.SignalBus.{DefineSignal, SubscribeToSignal, UpdateSignalValue}
+import info.andreaswolf.roadhopper.simulation.signals.SignalBus.{ScheduleSignalUpdate, DefineSignal, SubscribeToSignal, UpdateSignalValue}
 import org.scalatest._
 
 import scala.concurrent.{Await, Future}
@@ -22,6 +22,7 @@ class SignalBusTest(_system: ActorSystem) extends TestKit(_system)
 with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 	implicit val timeout = Timeout(10 seconds)
+
 	import system.dispatcher
 
 	def this() = this(ActorSystem("ActorTest"))
@@ -181,6 +182,33 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		process ? TellTime(20)
 		subject ? StepUpdate()
 		testReceiver.expectMsg(20)
+	}
+
+	test("Value updates scheduled for the future are executed before the first delta cycle") {
+		val subject = TestActorRef(new SignalBus(new TestProbe(system).ref))
+
+		val testReceiver = TestProbe()
+
+		val process = TestActorRef(new Process {
+			override def invoke(state: SignalState): Future[Any] = {
+				testReceiver.ref ! state.signalValue("test").get
+				Future.successful()
+			}
+		})
+		subject ? DefineSignal("test")
+		subject ? UpdateSignalValue("test", 1.0)
+		subject ? SubscribeToSignal("test", process)
+
+		subject ? TellTime(10)
+		process ? TellTime(10)
+		subject ? StepUpdate()
+		testReceiver.expectMsg(1.0)
+		subject ? ScheduleSignalUpdate(10, "test", 2.0)
+
+		process ? TellTime(20)
+		subject ? TellTime(20)
+		subject ? StepUpdate()
+		testReceiver.expectMsg(2.0)
 	}
 
 }
