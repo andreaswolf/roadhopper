@@ -83,6 +83,7 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 			if (!existingSubscriptions.contains(subscriber)) {
 				existingSubscriptions append subscriber
 			}
+			sender() ! true
 
 		case UpdateSignalValue(name, value) =>
 			scheduledUpdates.put(name, value)
