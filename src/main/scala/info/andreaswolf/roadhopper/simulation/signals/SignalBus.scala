@@ -63,7 +63,7 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 
 	val futureScheduledUpdates: mutable.HashMap[Int, mutable.HashMap[String, AnyVal]] = new mutable.HashMap[Int, mutable.HashMap[String, AnyVal]]()
 
-	val currentTimeStepPromise: Promise[Any] = Promise.apply[Any]()
+	var currentTimeStepPromise: Promise[Any] = Promise.apply[Any]()
 
 
 	registerReceiver {
@@ -119,7 +119,7 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 	 */
 	override def stepUpdate()(implicit exec: ExecutionContext): Future[Any] = {
 		{
-			scheduledUpdates.put("time", time)
+			currentTimeStepPromise = Promise.apply[Any]()
 			runDeltaCycle(1)
 			// This future is completed by runDeltaCycle() once no further value updates were scheduled
 			Future.sequence(List(
@@ -133,17 +133,20 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 	 * Runs a single delta cycle and afterwards recursively invokes the next cycle as long as updates were scheduled.
 	 * If no updates are scheduled, the promise for the current time step is marked as fulfilled.
 	 */
-	protected def runDeltaCycle(cycles: Int = 0): Future[Any] = {
-		if (scheduledUpdates.isEmpty) {
-			log.info(s"Finished time step after ${cycles-1} delta cycles. ")
+	protected def runDeltaCycle(cycle: Int = 1): Future[Any] = {
+		if (scheduledUpdates.isEmpty && cycle > 1) {
+			log.info(s"Finished time step $time after ${cycle - 1} delta cycles. ")
 			currentTimeStepPromise.complete(Try(true))
 			return Future.successful()
 		}
 
 		{
-			if (cycles == 1) {
+			if (cycle == 1) {
+				assert(scheduledUpdates.isEmpty, "ERROR: Regular updates scheduled for first delta cycle!")
 				scheduledUpdates.clear()
 				scheduledUpdates ++= futureScheduledUpdates.remove(time).getOrElse(new mutable.HashMap[String, AnyVal]())
+
+				scheduledUpdates.put("time", time)
 			}
 			signals = new SignalState(scheduledUpdates, signals)
 
@@ -155,14 +158,14 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 			).flatMap(e => e._2).toList.distinct
 			val futures = subscribersToNotify.map(subscriber => subscriber ? Invoke(signals))
 
-			log.info(s"Informed ${subscribersToNotify.length} subscribers about a change of ${updatedSignals.length} signals")
+			log.info(s"Informed ${subscribersToNotify.length} subscribers about a change of ${updatedSignals.length} signals ($updatedSignals)")
 
 			scheduledUpdates.clear()
 
 			Future.sequence(futures.toList)
 		} flatMap { x =>
 			// TODO can we make this non-recursive?
-			runDeltaCycle(cycles + 1)
+			runDeltaCycle(cycle + 1)
 		}
 	}
 }
