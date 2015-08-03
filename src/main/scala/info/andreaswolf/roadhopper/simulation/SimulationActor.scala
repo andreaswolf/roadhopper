@@ -48,8 +48,13 @@ trait SimulationActor extends Actor with ActorLogging {
 	var _receive : List[Receive] = List(
 		{
 			case TellTime(currentTime) =>
+				val oldTime = time
+				val originalSender = sender()
 				time = currentTime
-				sender() ! true
+				timeAdvanced(oldTime, currentTime) andThen {
+					case x =>
+						originalSender ! true
+				}
 
 			// TODO Make a method that creates a ListBuffer of Futures and turns them into a sequence that is then checked by the individual methods in here
 			case Start() =>
@@ -76,6 +81,9 @@ trait SimulationActor extends Actor with ActorLogging {
 				}
 		}
 	)
+
+
+	def timeAdvanced(oldTime: Int, newTime: Int ): Future[Any] = Future.successful()
 
 	/**
 	 * Registers a new receiver. Call with a partial function to make the actor accept additional types of messages.

@@ -37,8 +37,13 @@ abstract class Process(val bus: Option[ActorRef] = None) extends Actor {
 
 	def receive = {
 		case TellTime(_time) =>
+			val oldTime = time
+			val originalSender = sender()
 			time = _time
-			sender() ! true
+			timeAdvanced(oldTime, _time) andThen {
+				case x =>
+					originalSender ! true
+			}
 
 		case Invoke(signalState) =>
 			val originalSender = sender()
@@ -48,6 +53,8 @@ abstract class Process(val bus: Option[ActorRef] = None) extends Actor {
 			}
 
 	}
+
+	def timeAdvanced(oldTime: Int, newTime: Int): Future[Any] = Future.successful()
 
 	/**
 	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
