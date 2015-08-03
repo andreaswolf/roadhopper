@@ -6,12 +6,12 @@
 
 package info.andreaswolf.roadhopper.simulation.signals
 
-import akka.actor.ActorSystem
+import akka.actor.{Props, ActorSystem}
 import akka.pattern.ask
 import akka.testkit.{TestProbe, TestActorRef, ImplicitSender, TestKit}
 import akka.util.Timeout
 import info.andreaswolf.roadhopper.simulation.{TellTime, StepUpdate}
-import info.andreaswolf.roadhopper.simulation.signals.SignalBus.{ScheduleSignalUpdate, DefineSignal, SubscribeToSignal, UpdateSignalValue}
+import info.andreaswolf.roadhopper.simulation.signals.SignalBus._
 import org.scalatest._
 
 import scala.concurrent.{Await, Future}
@@ -57,7 +57,8 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 		subject ? DefineSignal("test")
 		subject ? SubscribeToSignal("test", process)
 		// TODO this feels a bit weird because it is done outside the update cycle
-		subject ? UpdateSignalValue("test", 1.0)
+		subject ? ScheduleSignalUpdate(10, "test", 1.0)
+		subject ? TellTime(10)
 		subject ? StepUpdate()
 
 		testReceiver.expectMsg("invoked!")
@@ -84,28 +85,35 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 	}
 
 	test("Updating another signal from a process triggers second delta cycle") {
-		val subject = TestActorRef(new SignalBus(new TestProbe(system).ref))
+		val subject = system.actorOf(Props(new SignalBus(new TestProbe(system).ref)))
 
 		val testReceiver = TestProbe()
 
-		val firstProcess = TestActorRef(new Process {
+		val firstProcess = system.actorOf(Props(new Process {
 			override def invoke(state: SignalState): Future[Any] = {
 				testReceiver.ref ! "first invoked!"
 				subject ? UpdateSignalValue("second", 2.0)
 			}
-		})
-		val secondProcess = TestActorRef(new Process {
+		}))
+		val secondProcess = system.actorOf(Props(new Process {
 			override def invoke(state: SignalState): Future[Any] = Future {
 				testReceiver.ref ! "second invoked!"
 			}
-		})
+		}))
 
-		subject ? DefineSignal("test")
-		subject ? DefineSignal("second")
-		subject ? SubscribeToSignal("test", firstProcess)
-		subject ? SubscribeToSignal("second", secondProcess)
-		// TODO this feels a bit weird because it is done outside the update cycle
-		subject ? UpdateSignalValue("test", 1.0)
+		Await.result(Future.sequence(Vector(
+			subject ? DefineSignal("test"),
+			subject ? DefineSignal("second"),
+			subject ? SubscribeToSignal("test", firstProcess),
+			subject ? SubscribeToSignal("second", secondProcess),
+			// TODO this feels a bit weird because it is done outside the update cycle
+			subject ? ScheduleSignalUpdate(10, "test", 1.0)
+		)), 10 seconds)
+		Await.result(Future.sequence(Vector(
+			subject ? TellTime(10)
+		)), 10 seconds)
+
+		// do not await the result of this future, as the timer will never respond to the schedule call in StepUpdate()
 		subject ? StepUpdate()
 
 		testReceiver.expectMsg("first invoked!")
@@ -124,13 +132,19 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 				Future.successful()
 			}
 		})
-		subject ? DefineSignal("first")
-		subject ? DefineSignal("second")
-		subject ? SubscribeToSignal("first", process)
-		subject ? SubscribeToSignal("second", process)
 
-		subject ? UpdateSignalValue("first", 2.0)
-		subject ? UpdateSignalValue("second", 3.0)
+		Await.result(Future.sequence(Vector(
+			subject ? DefineSignal("first"),
+			subject ? DefineSignal("second"),
+			subject ? SubscribeToSignal("first", process),
+			subject ? SubscribeToSignal("second", process),
+			subject ? ScheduleSignalUpdate(10, "first", 2.0),
+			subject ? ScheduleSignalUpdate(10, "second", 3.0)
+		)), 10 seconds)
+		Await.result(Future.sequence(Vector(
+				subject ? TellTime(10)
+		)), 10 seconds)
+
 		subject ? StepUpdate()
 
 		testReceiver.expectMsg("invoked!")
