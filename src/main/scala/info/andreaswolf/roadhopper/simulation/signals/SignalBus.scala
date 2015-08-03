@@ -2,7 +2,7 @@ package info.andreaswolf.roadhopper.simulation.signals
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import info.andreaswolf.roadhopper.simulation.{ScheduleStep, SimulationActor}
+import info.andreaswolf.roadhopper.simulation.{TellTime, ScheduleStep, SimulationActor}
 import info.andreaswolf.roadhopper.simulation.signals.Process.Invoke
 
 import scala.collection.mutable
@@ -98,6 +98,11 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 
 	}
 
+
+	override def timeAdvanced(oldTime: Int, newTime: Int): Future[Any] = {
+		val actorsToInform = subscribers.flatMap(subscription => subscription._2).toList.distinct
+		Future.sequence(actorsToInform.map(actor => actor ? TellTime(newTime)).toList)
+	}
 
 	/**
 	 * Handler for [[info.andreaswolf.roadhopper.simulation.Start]] messages.
