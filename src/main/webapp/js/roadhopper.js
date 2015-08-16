@@ -279,3 +279,36 @@ GHRequest.prototype.init = function(params) {
 GHRequest.prototype.createURL = function () {
 	return this.createPath(this.host + "/roadhopper/simulate?" + this.createPointParams(false) + "&type=" + this.dataType + "&key=" + this.key);
 };
+
+/**
+ * A time series, consisting of timestamps and a position for that time.
+ *
+ * @param data
+ * @constructor
+ */
+TimeSeriesDataSet = function(data) {
+	this.timestamps = [];
+	this.coordinates = [];
+	this.data = data;
+
+	// Extract all timestamps and coordinates from the data
+	for (var time in data) {
+		if (data.hasOwnProperty(time)) {
+			// if any data point is undefined, the control apparently enters an uncontrolled endless loop
+			if (data[time]["position"]["lon"] == undefined) {
+				continue;
+			}
+			this.timestamps.push(parseInt(time));
+			this.coordinates.push([data[time]["position"]["lon"], data[time]["position"]["lat"]]);
+		}
+	}
+};
+
+TimeSeriesDataSet.prototype.hasTime = function(time) {
+	return this.timestamps.indexOf(time) > -1;
+};
+
+TimeSeriesDataSet.prototype.directionForTime = function(time) {
+	return this.data[time.toString()]["direction"];
+};
+
