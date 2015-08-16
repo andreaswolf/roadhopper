@@ -400,10 +400,10 @@ TimeSeriesPlayback.prototype.draw = function() {
 	});
 	this.playback.addCallback(function(timestamp) {
 		if (!that.timeSeries.hasTime(timestamp)) {
-			console.error("No direction for " + timestamp);
 			return;
 		}
-		var angle = that.timeSeries.directionForTime(timestamp);
+		var angle = that.timeSeries.directionForTime(timestamp) * 180 / Math.PI;
+		console.debug("Drawing " + timestamp + ": " + angle);
 
 		// ATTENTION: This is an undocumented and unsupported hack to get the marker as it is not exposed via
 		// the official API.

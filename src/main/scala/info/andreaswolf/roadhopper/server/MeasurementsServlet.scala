@@ -9,7 +9,7 @@ package info.andreaswolf.roadhopper.server
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 import com.graphhopper.util.shapes.GHPoint3D
-import info.andreaswolf.roadhopper.road.RoadBuilder
+import info.andreaswolf.roadhopper.road.{RouteFactory, RoadBuilder}
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
 
@@ -29,6 +29,9 @@ class MeasurementsServlet extends HttpServlet {
 
 		def compare(that: MeasurementPoint): Int = this.date compare that.date
 	}
+
+
+	var roadBuilder: Option[RoadBuilder] = None
 
 	val measurements = new mutable.TreeSet[MeasurementPoint]()
 
@@ -57,7 +60,7 @@ class MeasurementsServlet extends HttpServlet {
 			val velocityKmh = _velocity.replace(",", ".").toDouble * 1.852
 			val latitude = _latitude.replace(",", ".").toDouble
 			val longitude = _longitude.replace(",", ".").toDouble
-			val orientation = _heading.replace(",", ".").toDouble
+			val orientation = _heading.replace(",", ".").toDouble.toRadians
 			// TODO the orientation provided by the data set is bulls... derive it from the positions instead
 			// (current position -> next position)
 
@@ -65,6 +68,11 @@ class MeasurementsServlet extends HttpServlet {
 
 			// only include one measurement per second
 			if (milliseconds.equals("00")) {
+				// ignore slow movements for creating the road
+				if (velocityKmh > 1.0) {
+					handlePointForRoad(latitude, longitude, velocityKmh)
+				}
+
 				val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60 + time.substring(4, 6).toLong) * 1000
 
 				measurements add (new MeasurementPoint(date, new GHPoint3D(latitude, longitude, 0.0), velocityKmh, orientation))
@@ -75,10 +83,27 @@ class MeasurementsServlet extends HttpServlet {
 
 		jsonContents.put("measurements", convertMeasurements())
 
+		convertRoadForFrontend(jsonContents)
+
 		val json = new JSONObject(JavaConversions.mapAsJavaMap(jsonContents))
 		resp.getWriter.append(json.toString)
 	}
 
+
+	def convertRoadForFrontend(jsonContents: mutable.LinkedHashMap[String, Object]): Unit = {
+		val road = roadBuilder map { _.build } get
+		val optimizedRoad = RouteFactory.simplifyRoadSegments(road, 15.0)
+
+		val points: List[GHPoint3D] = road.map(_.end) :+ road.head.start
+
+		jsonContents.put("road", JavaConversions.mapAsJavaMap(
+			Map(
+				"before optimization" -> road.size,
+				"after optimization" -> optimizedRoad.size,
+				"segments" -> JavaConversions.seqAsJavaList(points)
+			)
+		))
+	}
 
 	def convertMeasurements(): Object = {
 		val serialized = new mutable.LinkedHashMap[Long, Object]()
@@ -93,5 +118,14 @@ class MeasurementsServlet extends HttpServlet {
 		JavaConversions.mutableMapAsJavaMap(serialized)
 	}
 
+	def handlePointForRoad(latitude: Double, longitude: Double, velocity: Double) = {
+		val point = new GHPoint3D(latitude, longitude, 0.0)
+
+		roadBuilder match {
+			case None => roadBuilder = Some(new RoadBuilder(point))
+
+			case _ => roadBuilder map { _.addSegment(point) }
+		}
+	}
 
 }

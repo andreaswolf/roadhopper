@@ -1,9 +1,30 @@
 (function (roadHopper, $) {
+
+	var measurementRoad;
+
+	roadHopper.initMapCallbacks.push(function () {
+		measurementRoad = L.geoJson().addTo(map);
+		measurementRoad.options = {
+			style: {color: "#00cc33", "weight": 5, "opacity": 0.6} // route color and style
+		};
+	});
+
 	var drawMeasurement = function (json) {
 		var timeSeries = new TimeSeriesDataSet(json["measurements"]);
 		var playback = new TimeSeriesPlayback();
 
 		playback.setData(timeSeries);
+
+		var geoJson = {
+			"type": "Feature",
+			"geometry": {
+				"type": "LineString",
+				"coordinates": json["road"]["segments"].map(function (segment) {
+					return [segment["lon"], segment["lat"]];
+				})
+			}
+		};
+		measurementRoad.addData(geoJson);
 	};
 
 	var fetchMeasurement = function () {
