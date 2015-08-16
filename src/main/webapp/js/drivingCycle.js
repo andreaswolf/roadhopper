@@ -25,7 +25,10 @@
  */
 (function (roadhopper) {
 
-	var margins = {top: 20, right: 30, bottom: 20, left: 15};
+	var margins = {top: 20, right: 15, bottom: 40, left: 40},
+			height = 200,
+			width = 500;
+
 	var drivingCycle = {
 		/**
 		 * The driving cycle graph
@@ -38,7 +41,7 @@
 
 		draw: function (timeSeries) {
 			// see http://bl.ocks.org/mbostock/1166403 for some of the inspiration used for this code
-			var values = timeSeries.timestamps.map(function(timestamp) {
+			var values = timeSeries.timestamps.map(function (timestamp) {
 				return [timestamp, timeSeries.speedForTime(timestamp)];
 			});
 
@@ -46,7 +49,7 @@
 			var x = d3.scale.linear().range([0, this.width]),
 					y = d3.scale.linear().range([this.height, 0]),
 					xAxis = d3.svg.axis().scale(x).tickSize(-this.height).tickSubdivide(true),
-					yAxis = d3.svg.axis().scale(y).ticks(4).orient("right");
+					yAxis = d3.svg.axis().scale(y).ticks(4).orient("left");
 
 			x.domain([values[0][0], values[values.length - 1][0] / 1000]);
 			y.domain([0, d3.max(values, function (d) {
@@ -60,6 +63,21 @@
 			this.graph = container.append("svg")
 					.attr("class", "d3-diagram")
 					.data(values);
+
+			// the axis labels
+			this.graph.append("text")
+					.attr("transform", "rotate(-90)")
+					.attr("y", 0)
+					.attr("x", 0 - (height / 2))
+					.attr("dy", "15px")
+					.style("text-anchor", "middle")
+					.text("Speed [m/s]");
+			this.graph.append("text")
+					.attr("y", height)
+					.attr("x", width / 2)
+					.attr("dy", "-10px")
+					.style("text-anchor", "middle")
+					.text("Time [s]");
 
 			// the chart canvas
 			var chartCanvas = this.graph.append("g")
@@ -83,7 +101,6 @@
 					.call(xAxis);
 			chartCanvas.append("g")
 					.attr("class", "y axis")
-					.attr("transform", "translate(" + this.width + ",0)")
 					.call(yAxis);
 
 
