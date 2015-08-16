@@ -304,6 +304,21 @@ TimeSeriesDataSet = function(data) {
 	}
 };
 
+TimeSeriesDataSet.prototype.asGeoJSON = function() {
+	return {
+		"type": "Feature",
+		"geometry": {
+			"type": "MultiPoint",
+			"coordinates": this.coordinates
+		},
+		"properties": {
+			"time": this.timestamps
+		},
+		// The data as received from the server; used for processing further information
+		data: this.data
+	}
+};
+
 TimeSeriesDataSet.prototype.hasTime = function(time) {
 	return this.timestamps.indexOf(time) > -1;
 };
@@ -312,3 +327,61 @@ TimeSeriesDataSet.prototype.directionForTime = function(time) {
 	return this.data[time.toString()]["direction"];
 };
 
+TimeSeriesDataSet.prototype.positionForTime = function(time) {
+	return this.data[time.toString()]["position"];
+};
+
+
+TimeSeriesPlayback = function() {
+	this.timeSeries = null;
+	this.playback = null;
+	this.markerDrawn = false;
+};
+
+TimeSeriesPlayback.prototype.setData = function(timeSeries) {
+	if (!this.markerDrawn) {
+		this.draw();
+	}
+	this.playback.clearData();
+	this.timeSeries = timeSeries;
+	this.playback.setData(timeSeries.asGeoJSON());
+};
+
+TimeSeriesPlayback.prototype.draw = function() {
+	if (this.markerDrawn) {
+		return;
+	}
+	var that = this;
+
+	var markerIcon = L.icon({
+		iconUrl: './img/marker-36.png',
+		iconAnchor: [18, 18],
+		iconSize: [36, 36]
+	});
+
+	this.playback = new L.Playback(map, this.data, null, {
+		marker: function () {
+			return {
+				icon: markerIcon,
+				iconAngle: 90
+			}
+		}
+	});
+	this.playback.addCallback(function(timestamp) {
+		if (!that.timeSeries.hasTime(timestamp)) {
+			console.error("No direction for " + timestamp);
+			return;
+		}
+		var angle = that.timeSeries.directionForTime(timestamp);
+
+		// ATTENTION: This is an undocumented and unsupported hack to get the marker as it is not exposed via
+		// the official API.
+		that.playback._trackController._tracks[0]._marker.setIconAngle(angle);
+	});
+	this.markerDrawn = true;
+
+	// Initialize custom control
+	this.positionMarker = new L.Playback.Control(this.playback);
+	this.positionMarker.addTo(map);
+
+};

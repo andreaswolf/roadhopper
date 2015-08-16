@@ -119,9 +119,9 @@ public class RoadHopperServlet extends GraphHopperServlet
 			writeResponse(httpResponse, createGPXString(httpRequest, httpResponse, ghRsp));
 		} else
 		{
-			JsonWriter writer = new JsonWriter(hopper);
-			Map<String, Object> map = writer.createJson(ghRsp,
-					calcPoints, pointsEncoded, enableElevation, enableInstructions);
+			JsonWriter writer = new JsonWriter(hopper,
+								calcPoints, pointsEncoded, enableElevation, enableInstructions);
+			Map<String, Object> map = writer.createJson(ghRsp);
 
 			if (hopperRoute != null)
 			{
