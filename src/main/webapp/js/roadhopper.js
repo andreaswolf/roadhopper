@@ -1,14 +1,5 @@
 var initMapOrig = initMap;
 var roadSignLayer, turnLines;
-initMap = function(selectLayer) {
-	initMapOrig(selectLayer);
-
-	roadSignLayer = L.geoJson().addTo(map);
-	layerControl.addOverlay(roadSignLayer, "Road Signs");
-
-	turnLines = L.geoJson().addTo(map);
-	layerControl.addOverlay(turnLines, "Turn lines");
-};
 
 /**
  * Converts an angle in radians to 0..360°.
@@ -23,6 +14,14 @@ function toDegrees(radians) {
 
 var graphHopperIntegration = {
 	drawRouteCallbacks: [],
+	modulesSelector: '#modules',
+
+	/**
+	 * The LeafletJS map. Will be set when the map is initialized.
+	 */
+	map: null,
+
+	initMapCallbacks: [],
 
 	drawRoute: function(jsonData) {
 		for (var i = 0; i < this.drawRouteCallbacks.length; ++i) {
@@ -34,10 +33,42 @@ var graphHopperIntegration = {
 
 	addRouteDrawCallback: function(callback, context) {
 		this.drawRouteCallbacks.push([callback, context]);
+	},
+
+	addModule: function(name, label, contents) {
+		var module = $('<section class="module" data-module="' + name + '" />');
+
+		module.append($('<div class="header">').text(label));
+		var $content = $('<div class="content">');
+		$content.append(contents);
+		$content.hide();
+		module.append($content);
+
+		var that = this;
+		$(function() {
+			$(that.modulesSelector).append(module);
+		})
 	}
 };
 drawRouteCallback = function(jsonData) {
 	graphHopperIntegration.drawRoute(jsonData);
+};
+initMap = function(selectLayer) {
+	initMapOrig(selectLayer);
+
+	roadSignLayer = L.geoJson().addTo(map);
+	layerControl.addOverlay(roadSignLayer, "Road Signs");
+
+	turnLines = L.geoJson().addTo(map);
+	layerControl.addOverlay(turnLines, "Turn lines");
+
+	// we can only initialize the map now, as it was not ready before
+	graphHopperIntegration.map = map;
+
+	var callbacks = graphHopperIntegration.initMapCallbacks;
+	for (var i = 0; i < callbacks.length; ++i) {
+		callbacks[i]();
+	}
 };
 
 /**
@@ -385,3 +416,22 @@ TimeSeriesPlayback.prototype.draw = function() {
 	this.positionMarker.addTo(map);
 
 };
+
+
+/**
+ * The modules menu
+ */
+(function($) {
+	$(function() {
+		var $modules = $('#modules');
+
+		$modules.find('.content').hide();
+
+		$modules.on('click', '.header', function() {
+			$modules.find('.content').hide();
+			$(this).siblings('.content').show();
+		});
+		$modules.find('.header').first().trigger('click');
+	});
+
+})(jQuery);
