@@ -362,11 +362,20 @@ TimeSeriesDataSet.prototype.positionForTime = function(time) {
 	return this.data[time.toString()]["position"];
 };
 
+TimeSeriesDataSet.prototype.speedForTime = function(time) {
+	return this.data[time.toString()]["speed"];
+};
+
 
 TimeSeriesPlayback = function() {
 	this.timeSeries = null;
+	// initialized in draw()
 	this.playback = null;
 	this.markerDrawn = false;
+};
+
+TimeSeriesPlayback.prototype.registerCallback = function(callback) {
+	this.playback.addCallback(callback);
 };
 
 TimeSeriesPlayback.prototype.setData = function(timeSeries) {
@@ -390,7 +399,7 @@ TimeSeriesPlayback.prototype.draw = function() {
 		iconSize: [36, 36]
 	});
 
-	this.playback = new L.Playback(map, this.data, null, {
+	this.playback = new L.Playback(map, null, null, {
 		marker: function () {
 			return {
 				icon: markerIcon,

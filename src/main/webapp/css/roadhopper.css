@@ -33,6 +33,9 @@
 }
 
 .module .header {
+	margin:0;
+	font-size:1em;
+	line-height:1.4em;
     background:#eee;
     cursor:pointer;
     padding:0.4em;
@@ -58,6 +61,29 @@
 	margin:0;
 	padding:0;
 	float:none;
+}
+
+#vehicle-status {
+	display:none;
+	position:absolute;
+	left:10px;
+	bottom:50px;
+	width:200px;
+	min-height:100px;
+	background:#fff;
+	z-index:100;
+	-webkit-box-shadow: 10px 10px 25px 0px rgba(0,0,0,0.33);
+	-moz-box-shadow: 10px 10px 25px 0px rgba(0,0,0,0.33);
+	box-shadow: 10px 10px 25px 0px rgba(0,0,0,0.33);
+}
+
+.box h2 {
+	font-size:1em;
+	font-weight:bold;
+	line-height:1.4em;
+	padding:0.4em;
+	border-bottom:solid 1px #ccc;
+	margin: 0 0 0.4em;
 }
 
 #searchButton {

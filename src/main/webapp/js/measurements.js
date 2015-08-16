@@ -15,6 +15,20 @@
 
 		playback.setData(timeSeries);
 
+		var running = false;
+		// TODO this callback must not be registered twice!
+		playback.registerCallback(function(time) {
+			if (!timeSeries.hasTime(time)) {
+				return;
+			}
+			if (!running) {
+				// TODO we cannot detect the end of a playback currently
+				running = true;
+				$('#vehicle-status').show();
+			}
+			$("#vehicle-status").find('[data-index="speed"]').text(timeSeries.speedForTime(time).toFixed(2));
+		});
+
 		var geoJson = {
 			"type": "Feature",
 			"geometry": {
