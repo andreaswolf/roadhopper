@@ -51,9 +51,11 @@ class VehicleFactory(val context: ActorRefFactory, val timer: ActorRef, val sign
 			signalBus ? DefineSignal("a"),
 			signalBus ? DefineSignal("s"),
 
-			// The motor output (= torque)
+			// The motor output (= torque); M is the direct motor output, M* is the wheel "input" that is delayed by the
+			// inertia of the power train TODO check this again
 			signalBus ? DefineSignal("M"),
-			signalBus ? SubscribeToSignal("M", wheels),
+			signalBus ? DefineSignal("M*"),
+			signalBus ? SubscribeToSignal("M*", wheels),
 			signalBus ? SubscribeToSignal("time", wheels)
 			// TODO this currently leads to an endless loop
 			//signalBus ? SubscribeToSignal("v", wheels)

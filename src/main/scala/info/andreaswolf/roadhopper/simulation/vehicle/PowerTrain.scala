@@ -6,14 +6,15 @@
 
 package info.andreaswolf.roadhopper.simulation.vehicle
 
-import akka.actor.{ActorLogging, ActorRef}
+import akka.actor.{Props, ActorLogging, ActorRef}
 import akka.pattern.ask
 import info.andreaswolf.roadhopper.simulation.SimulationActor
 import info.andreaswolf.roadhopper.simulation.control.{DeadTime, PT1}
-import info.andreaswolf.roadhopper.simulation.signals.SignalBus.UpdateSignalValue
+import info.andreaswolf.roadhopper.simulation.signals.SignalBus.{SubscribeToSignal, UpdateSignalValue}
 import info.andreaswolf.roadhopper.simulation.signals.{SignalState, Process}
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 class PowerTrain(val throttle: ActorRef, val motor: ActorRef,
                  timer: ActorRef, signalBus: ActorRef) extends SimulationActor {
@@ -21,19 +22,18 @@ class PowerTrain(val throttle: ActorRef, val motor: ActorRef,
 }
 
 
-// very simplistic model of the engine (can this be modeled as a PT1 part?)
 /**
  *
  */
-class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef)
-	extends PT1("alpha*", "M", 100, bus = signalBus) {
+class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef) extends Process with ActorLogging {
+
+	import context.dispatcher
 
 	/**
 	 * Calculate the engine force
 	 */
 	override def invoke(signals: SignalState): Future[Any] = {
-		val loadFactor = signals.signalValue("alpha*").getOrElse(0).asInstanceOf[Int]
-		// The wheel’s angular velocity; make sure that we don
+		val loadFactor = signals.signalValue("alpha*", 0)
 		val wheelAngularVelocity: Double =
 			// make sure the vehicle is not rolling backwards; even if it is, the engine will only move it forward
 			Math.max(0.0, signals.signalValue("v", 0.0)) / (2.0 * Math.PI * vehicleParameters.wheelRadius / 100.0)
@@ -48,6 +48,15 @@ class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef)
 
 		signalBus ? UpdateSignalValue("M", M)
 	}
+
+	// The delay of the torque from the motor to the wheels
+	val powerTrainInertia = context.actorOf(Props(new PT1("M", "M*", 100, bus = signalBus)))
+
+	Await.result(Future.sequence(List(
+		signalBus ? SubscribeToSignal("M", powerTrainInertia),
+		signalBus ? SubscribeToSignal("time", powerTrainInertia)
+	)), 1 second)
+
 
 }
 
