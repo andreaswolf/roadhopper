@@ -15,45 +15,44 @@ import scala.concurrent.Future
 
 /**
  * An integrator controller summarizes its input value over time.
+ *
+ * TODO implement a proportionality factor
  */
 class Integrator(inputSignalName: String, outputSignalName: String, signalBus: ActorRef) extends Process(Some(signalBus))
 with ActorLogging {
 
 	import context.dispatcher
 
-	var lastValue: Double = 0.0
+	val initialState = new ControllerState[Double](0.0, 0)
+
+	var currentState: Option[ControllerState[Double]] = None
 
 	/**
-	 * The last time this process was invoked *before* the current time. This value does not change during one time step,
-	 * even if the process is invoked multiple times.
+	 * This value becomes the current state with the first invocation of [[timeAdvanced()]].
 	 */
-	var lastTimeStep = 0
-
-	/**
-	 * The time the process was last invoked. This value is updated with each update, that means it could be updated
-	 * multiple times during one time step
-	 */
-	var lastInvocationTime = 0
+	var nextState: Option[ControllerState[Double]] = Some(initialState)
 
 	override def timeAdvanced(oldTime: Int, newTime: Int): Future[Unit] = Future {
-		lastTimeStep = lastInvocationTime
+		currentState = nextState
+		nextState = null
 	}
 
 	/**
 	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
 	 */
 	override def invoke(signals: SignalState): Future[Any] = {
-		val deltaT = time - lastTimeStep
+		val deltaT = time - currentState.get.time
 		if (deltaT == 0) {
 			return Future.successful()
 		}
 		val currentInput = signals.signalValue(inputSignalName, 0.0)
 
-		val newValue = lastValue + currentInput * deltaT / 1000.0
+		nextState = deriveNewState(deltaT, currentInput)
 
-		lastInvocationTime = time
-		lastValue = newValue
+		signalBus ? UpdateSignalValue(outputSignalName, nextState.get.value)
+	}
 
-		signalBus ? UpdateSignalValue(outputSignalName, newValue)
+	def deriveNewState(deltaT: Int, currentInput: Double): Option[ControllerState[Double]] = {
+		Some(new ControllerState[Double](currentState.get.value + currentInput * deltaT / 1000.0, time))
 	}
 }
