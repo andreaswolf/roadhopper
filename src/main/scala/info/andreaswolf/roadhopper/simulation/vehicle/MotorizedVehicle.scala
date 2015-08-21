@@ -59,14 +59,46 @@ class MotorizedVehicle(val parameters: VehicleParameters, timer: ActorRef, signa
 
 			lastInvocationTime = time
 			lastValue = newVelocity
+			log.debug(s"Current velocity: $newVelocity")
 
 			signalBus ? UpdateSignalValue("v", newVelocity)
 		}
 	})
+	val distanceWatch = Props(new Process(Some(signalBus)) {
+		var currentDistance: Double = 0.0
+
+		var lastTimeStep = 0
+
+		var lastInvocationTime = 0
+
+		override def timeAdvanced(oldTime: Int, newTime: Int): Future[Unit] = Future {
+			lastTimeStep = lastInvocationTime
+		}
+
+		override def invoke(signals: SignalState): Future[Any] = {
+			val deltaT = time - lastTimeStep
+			if (deltaT == 0) {
+				log.error("No time passed since last invocation: Cannot update signal")
+				return Future.successful()
+			}
+			val currentVelocity = signals.signalValue("v", 0.0)
+
+			val newDistance = currentDistance + currentVelocity * deltaT / 1000.0
+
+			lastInvocationTime = time
+			currentDistance = newDistance
+			log.debug("Travelled distance: " + currentDistance)
+
+			signalBus ? UpdateSignalValue("s", newDistance)
+		}
+	})
+
 	val velocityWatchActor = context.actorOf(velocityWatch, "velocityWatch")
+	val distanceWatchActor = context.actorOf(distanceWatch, "distanceWatch")
 
 	Await.result(Future.sequence(List(
-		signalBus ? SubscribeToSignal("time", velocityWatchActor)
+		signalBus ? SubscribeToSignal("time", velocityWatchActor),
+		signalBus ? SubscribeToSignal("time", distanceWatchActor)
 	)), 1 second)
 
 }

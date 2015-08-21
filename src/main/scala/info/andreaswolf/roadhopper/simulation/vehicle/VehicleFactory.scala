@@ -46,9 +46,10 @@ class VehicleFactory(val context: ActorRefFactory, val timer: ActorRef, val sign
 			signalBus ? SubscribeToSignal("alpha*", engine),
 			signalBus ? SubscribeToSignal("time", engine),
 
-			// The vehicle velocity/acceleration
+			// The vehicle velocity/acceleration/travelled distance
 			signalBus ? DefineSignal("v"),
 			signalBus ? DefineSignal("a"),
+			signalBus ? DefineSignal("s"),
 
 			// The motor output (= torque)
 			signalBus ? DefineSignal("M"),
