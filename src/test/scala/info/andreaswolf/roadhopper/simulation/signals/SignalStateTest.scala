@@ -35,6 +35,20 @@ class SignalStateTest extends FunSuite {
 		assert(!subject.isUpdated("bar"))
 	}
 
+	test("Default value is returned if no value is set") {
+		val subject = new SignalState(HashMap("foo" -> 3.0))
+
+		assert(subject.signalValue("bar", 1.0) == 1.0)
+	}
+
+	test("Getting value fails if expected return type does not match value type") {
+		val subject = new SignalState(HashMap("foo" -> 3.0))
+
+		intercept[ClassCastException] {
+			subject.signalValue("foo", 2)
+		}
+	}
+
 	test("getUpdated returns empty list by default") {
 		val subject = new SignalState(HashMap("foo" -> 1.0, "bar" -> 2))
 

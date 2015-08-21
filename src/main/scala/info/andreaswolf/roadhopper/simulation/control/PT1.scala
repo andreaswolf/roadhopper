@@ -52,8 +52,7 @@ class PT1(inputSignalName: String, outputSignalName: String, timeConstant: Int, 
 	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
 	 */
 	override def invoke(signals: SignalState): Future[Any] = {
-		// TODO we should have typesafe signals…
-		val currentInput = signals.signalValue(inputSignalName).getOrElse(initialValue).asInstanceOf[Double]
+		val currentInput = signals.signalValue(inputSignalName, initialValue)
 
 		val deltaT = time - lastTimeStep
 		if (deltaT == 0) {

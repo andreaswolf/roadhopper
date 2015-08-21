@@ -33,6 +33,14 @@ class SignalState(val values: SignalState.Values, val updated: List[String] = Li
 	 */
 	def signalValue(name: String): Option[AnyVal] = values.get(name)
 
+	/**
+	 * Returns the given signal’s value, or the default value if no value is set.
+	 *
+	 * @tparam T The type of the value to return. Note that this will cause an error if the value is not of the correct type.
+	 * @return
+	 */
+	def signalValue[T](name: String, default: T): T = values.getOrElse(name, default).asInstanceOf[T]
+
 	def isUpdated(name: String) = updated.contains(name)
 
 	/**
