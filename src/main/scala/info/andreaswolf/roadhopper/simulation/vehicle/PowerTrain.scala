@@ -38,8 +38,15 @@ class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef) exte
 			// make sure the vehicle is not rolling backwards; even if it is, the engine will only move it forward
 			Math.max(0.0, signals.signalValue("v", 0.0)) / (2.0 * Math.PI * vehicleParameters.wheelRadius / 100.0)
 
-		// the engine’s rotational speed in [1/s]
-		val rotation = Math.max(0.00001, wheelAngularVelocity * vehicleParameters.transmissionRatio)
+		// the engine’s rotational speed in [1/s]; if the engine reaches the velocity limit, the rotation is set to
+		// infinity to make the torque very small so the wheel/engine velocity does not exceed the limit (it might exceed
+		// it by a few per mill. This is possible because the rotation is not exposed externally; if we ever expose it, we
+		// must keep the actual rotation speed and the "helper" used to calculate the engine torque strictly apart.
+		val rotation = wheelAngularVelocity match {
+			case x if x == 0 => 0.00001
+			case x if x * vehicleParameters.transmissionRatio > (vehicleParameters.maximumEngineRpm / 60) => Double.PositiveInfinity
+			case x => wheelAngularVelocity * vehicleParameters.transmissionRatio
+		}
 		val M = Math.min(
 			vehicleParameters.maximumEngineTorque,
 			loadFactor / 100.0 * vehicleParameters.maximumEnginePower / (2.0 * Math.PI * rotation)
