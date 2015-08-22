@@ -9,12 +9,11 @@ package info.andreaswolf.roadhopper.simulation.vehicle
 import akka.actor.{ActorRef, Props}
 import akka.pattern.ask
 import info.andreaswolf.roadhopper.simulation.SimulationActor
-import info.andreaswolf.roadhopper.simulation.control.Integrator
-import info.andreaswolf.roadhopper.simulation.signals.SignalBus.{SubscribeToSignal, UpdateSignalValue}
-import info.andreaswolf.roadhopper.simulation.signals.{Process, SignalState}
+import info.andreaswolf.roadhopper.simulation.control.IController
+import info.andreaswolf.roadhopper.simulation.signals.SignalBus.SubscribeToSignal
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
 /**
  * A Vehicle with a completely modeled power train.
@@ -27,8 +26,8 @@ class MotorizedVehicle(val parameters: VehicleParameters, timer: ActorRef, signa
 
 	import context.dispatcher
 
-	val velocityWatch = context.actorOf(Props(new Integrator("a", "v", signalBus)), "velocityWatch")
-	val distanceWatch = context.actorOf(Props(new Integrator("v", "s", signalBus)), "distanceWatch")
+	val velocityWatch = context.actorOf(Props(new IController("a", "v", signalBus)), "velocityWatch")
+	val distanceWatch = context.actorOf(Props(new IController("v", "s", signalBus)), "distanceWatch")
 
 	Await.result(Future.sequence(List(
 		signalBus ? SubscribeToSignal("time", velocityWatch),
