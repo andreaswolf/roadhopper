@@ -74,10 +74,16 @@ class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Pr
 	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
 	 */
 	override def invoke(signals: SignalState): Future[Any] = {
-		// TODO respect vehicle’s current grade, also calculate the climbing resistance
-		val rollingFrictionForce = vehicleParameters.wheelDragCoefficient * vehicleParameters.mass * 9.81
-
 		val currentVelocity = signals.signalValue("v", 0.0)
+
+		// TODO respect vehicle’s current grade, also calculate the climbing resistance
+		val rollingFrictionForce = currentVelocity match {
+			case x if x > 0.0 =>
+				4 * vehicleParameters.wheelDragCoefficient * vehicleParameters.mass * 9.81
+
+			case x =>
+				0.0
+		}
 
 		// TODO calculate this based on the current air pressure
 		val airDensity: Double = 1.2
