@@ -39,8 +39,10 @@ class PIDController(val inputSignalName: String, val outputSignalName: String,
 
 
 	override def timeAdvanced(oldTime: Int, newTime: Int): Future[Unit] = Future {
-		currentState = nextState
-		nextState = null
+		if (nextState != null) {
+			currentState = nextState
+			nextState = null
+		}
 		integrator.timeAdvanced(oldTime, newTime)
 		differentiator.timeAdvanced(oldTime, newTime)
 	}

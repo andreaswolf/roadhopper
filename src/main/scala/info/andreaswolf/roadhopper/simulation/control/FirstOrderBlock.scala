@@ -29,8 +29,10 @@ abstract class FirstOrderBlock {
 
 	def timeAdvanced(oldTime: Int, newTime: Int)(implicit ec: ExecutionContext): Future[Unit] = Future {
 		time = newTime
-		currentState = nextState
-		nextState = null
+		if (nextState != null) {
+			currentState = nextState
+			nextState = null
+		}
 	}
 
 
