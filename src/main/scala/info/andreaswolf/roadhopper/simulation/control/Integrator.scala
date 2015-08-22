@@ -23,14 +23,14 @@ with ActorLogging {
 
 	import context.dispatcher
 
-	val initialState = new ControllerState[Double](0.0, 0)
+	val initialState = new ControllerState[Double](0.0, 0.0, 0)
 
-	var currentState: Option[ControllerState[Double]] = None
+	var currentState: ControllerState[Double] = null
 
 	/**
 	 * This value becomes the current state with the first invocation of [[timeAdvanced()]].
 	 */
-	var nextState: Option[ControllerState[Double]] = Some(initialState)
+	var nextState: ControllerState[Double] = initialState
 
 	override def timeAdvanced(oldTime: Int, newTime: Int): Future[Unit] = Future {
 		currentState = nextState
@@ -41,7 +41,7 @@ with ActorLogging {
 	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
 	 */
 	override def invoke(signals: SignalState): Future[Any] = {
-		val deltaT = time - currentState.get.time
+		val deltaT = time - currentState.time
 		if (deltaT == 0) {
 			return Future.successful()
 		}
@@ -49,10 +49,12 @@ with ActorLogging {
 
 		nextState = deriveNewState(deltaT, currentInput)
 
-		signalBus ? UpdateSignalValue(outputSignalName, nextState.get.value)
+		signalBus ? UpdateSignalValue(outputSignalName, nextState.currentOutput)
 	}
 
-	def deriveNewState(deltaT: Int, currentInput: Double): Option[ControllerState[Double]] = {
-		Some(new ControllerState[Double](currentState.get.value + currentInput * deltaT / 1000.0, time))
+	def deriveNewState(deltaT: Int, currentInput: Double): ControllerState[Double] = {
+		val output: Double = currentState.currentOutput + currentInput * deltaT / 1000.0
+
+		Some(new ControllerState[Double](output, currentInput, currentState, time))
 	}
 }
