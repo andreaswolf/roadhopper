@@ -28,7 +28,7 @@ object Process {
  *
  * @param bus The signal bus instance. Optional.
  */
-abstract class Process(val bus: Option[ActorRef] = None) extends Actor {
+abstract class Process(val bus: ActorRef) extends Actor {
 
 	implicit val timeout = Timeout(10 seconds)
 	import context.dispatcher

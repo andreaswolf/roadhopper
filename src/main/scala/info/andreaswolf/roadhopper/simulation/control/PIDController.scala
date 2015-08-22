@@ -18,8 +18,8 @@ import scala.concurrent.Future
  */
 class PIDController(val inputSignalName: String, val outputSignalName: String,
                     val proportionalGain: Double, val integratorGain: Double, val differentiatorGain: Double,
-                    val signalBus: ActorRef)
-	extends Process(Some(signalBus)) with ActorLogging {
+                    override val bus: ActorRef)
+	extends Process(bus) with ActorLogging {
 
 	import context.dispatcher
 
@@ -63,7 +63,7 @@ class PIDController(val inputSignalName: String, val outputSignalName: String,
 
 		nextState = new ControllerState[Double](output, currentInput, currentState, time)
 
-		signalBus ? UpdateSignalValue(outputSignalName, output)
+		bus ? UpdateSignalValue(outputSignalName, output)
 	}
 
 }

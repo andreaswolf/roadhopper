@@ -19,7 +19,7 @@ import scala.concurrent.Future
  *
  * TODO implement a proportionality factor
  */
-class IController(inputSignalName: String, outputSignalName: String, signalBus: ActorRef) extends Process(Some(signalBus))
+class IController(inputSignalName: String, outputSignalName: String, signalBus: ActorRef) extends Process(signalBus)
 with ActorLogging {
 
 	import context.dispatcher

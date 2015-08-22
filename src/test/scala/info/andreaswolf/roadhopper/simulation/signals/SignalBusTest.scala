@@ -48,7 +48,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 		val testReceiver = TestProbe()
 
-		val process = TestActorRef(new Process {
+		val process = TestActorRef(new Process(subject) {
 			override def invoke(state: SignalState): Future[Any] = Future {
 				testReceiver.ref ! "invoked!"
 			}
@@ -69,7 +69,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 		val testReceiver = TestProbe()
 
-		val process = TestActorRef(new Process {
+		val process = TestActorRef(new Process(subject) {
 			override def invoke(state: SignalState): Future[Any] = Future {
 				testReceiver.ref ! state.signalValue("test").get
 			}
@@ -89,13 +89,13 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 		val testReceiver = TestProbe()
 
-		val firstProcess = system.actorOf(Props(new Process {
+		val firstProcess = system.actorOf(Props(new Process(subject) {
 			override def invoke(state: SignalState): Future[Any] = {
 				testReceiver.ref ! "first invoked!"
 				subject ? UpdateSignalValue("second", 2.0)
 			}
 		}))
-		val secondProcess = system.actorOf(Props(new Process {
+		val secondProcess = system.actorOf(Props(new Process(subject) {
 			override def invoke(state: SignalState): Future[Any] = Future {
 				testReceiver.ref ! "second invoked!"
 			}
@@ -126,7 +126,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 		val testReceiver = TestProbe()
 
-		val process = TestActorRef(new Process {
+		val process = TestActorRef(new Process(subject) {
 			override def invoke(state: SignalState): Future[Any] = {
 				testReceiver.ref ! "invoked!"
 				Future.successful()
@@ -156,7 +156,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 		val testReceiver = TestProbe()
 
-		val process = TestActorRef(new Process {
+		val process = TestActorRef(new Process(subject) {
 			override def invoke(state: SignalState): Future[Any] = {
 				testReceiver.ref ! state.signalValue("first").get
 				Future.successful()
@@ -181,7 +181,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 		val testReceiver = TestProbe()
 
-		val process = TestActorRef(new Process {
+		val process = TestActorRef(new Process(subject) {
 			override def invoke(state: SignalState): Future[Any] = {
 				testReceiver.ref ! time
 				Future.successful()
@@ -203,7 +203,7 @@ with FunSuiteLike with ImplicitSender with Matchers with BeforeAndAfterAll {
 
 		val testReceiver = TestProbe()
 
-		val process = TestActorRef(new Process {
+		val process = TestActorRef(new Process(subject) {
 			override def invoke(state: SignalState): Future[Any] = {
 				testReceiver.ref ! state.signalValue("test").get
 				Future.successful()

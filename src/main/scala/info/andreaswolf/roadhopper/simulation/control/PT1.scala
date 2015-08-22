@@ -22,7 +22,7 @@ import scala.concurrent.Future
  *                        of this controller to listen to the signal.
  */
 class PT1(inputSignalName: String, outputSignalName: String, timeConstant: Int, amplification: Double = 1.0,
-          initialValue: Double = 0.0, bus: ActorRef) extends Process(Some(bus)) with ActorLogging {
+          initialValue: Double = 0.0, bus: ActorRef) extends Process(bus) with ActorLogging {
 
 	import context.dispatcher
 

@@ -25,7 +25,7 @@ class PowerTrain(val throttle: ActorRef, val motor: ActorRef,
 /**
  *
  */
-class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef) extends Process with ActorLogging {
+class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef) extends Process(signalBus) with ActorLogging {
 
 	import context.dispatcher
 
@@ -68,7 +68,7 @@ class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef) exte
 }
 
 
-class Wheels(val vehicleParameters: VehicleParameters, val signalBus: ActorRef) extends Process with ActorLogging {
+class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Process(bus) with ActorLogging {
 
 	/**
 	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
@@ -93,7 +93,7 @@ class Wheels(val vehicleParameters: VehicleParameters, val signalBus: ActorRef) 
 		// TODO add a factor for rotational inertia
 		val acceleration = effectiveForce / vehicleParameters.mass
 
-		signalBus ? UpdateSignalValue("a", acceleration)
+		bus ? UpdateSignalValue("a", acceleration)
 	}
 
 }

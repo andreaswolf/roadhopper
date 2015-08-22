@@ -19,7 +19,7 @@ import scala.concurrent.Future
  *
  * @param delay The delay in milliseconds
  */
-class DeadTime(inputSignalName: String, delay: Int, outputSignalName: String, bus: ActorRef) extends Process(Some(bus)) {
+class DeadTime(inputSignalName: String, delay: Int, outputSignalName: String, bus: ActorRef) extends Process(bus) {
 
 	override def invoke(signals: SignalState): Future[Any] = {
 		bus ? ScheduleSignalUpdate(delay, outputSignalName, signals.signalValue(inputSignalName).getOrElse(0.0))
