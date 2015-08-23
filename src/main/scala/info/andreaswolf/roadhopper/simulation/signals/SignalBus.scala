@@ -18,9 +18,9 @@ object SignalBus {
 	/**
 	 * @param delta The time (from now on) when the signal should be updated
 	 */
-	case class ScheduleSignalUpdate(delta: Int, signalName: String, newValue: AnyVal)
+	case class ScheduleSignalUpdate(delta: Int, signalName: String, newValue: Any)
 
-	case class UpdateSignalValue(signalName: String, newValue: AnyVal)
+	case class UpdateSignalValue(signalName: String, newValue: Any)
 
 	case class SubscribeToSignal(signalName: String, subscriber: ActorRef)
 
@@ -59,9 +59,9 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 
 	val subscribers: mutable.HashMap[String, ListBuffer[ActorRef]] = new mutable.HashMap[String, ListBuffer[ActorRef]]()
 
-	val scheduledUpdates: mutable.HashMap[String, AnyVal] = new mutable.HashMap[String, AnyVal]()
+	val scheduledUpdates: mutable.HashMap[String, Any] = new mutable.HashMap[String, Any]()
 
-	val futureScheduledUpdates: mutable.HashMap[Int, mutable.HashMap[String, AnyVal]] = new mutable.HashMap[Int, mutable.HashMap[String, AnyVal]]()
+	val futureScheduledUpdates: mutable.HashMap[Int, mutable.HashMap[String, Any]] = new mutable.HashMap[Int, mutable.HashMap[String, Any]]()
 
 	var currentTimeStepPromise: Promise[Any] = Promise.apply[Any]()
 
@@ -91,7 +91,7 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 			sender() ! true
 
 		case ScheduleSignalUpdate(delta, name, value) =>
-			val updatesForTime = futureScheduledUpdates.getOrElseUpdate(time + delta, new mutable.HashMap[String, AnyVal]())
+			val updatesForTime = futureScheduledUpdates.getOrElseUpdate(time + delta, new mutable.HashMap[String, Any]())
 			// TODO check if there already is an update scheduled => how to react then?
 			updatesForTime.put(name, value)
 

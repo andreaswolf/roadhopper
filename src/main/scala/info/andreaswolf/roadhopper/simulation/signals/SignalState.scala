@@ -11,7 +11,7 @@ import scala.collection.immutable.{HashMap, Map => ImmutableMap}
 
 object SignalState {
 
-	type Values = ImmutableMap[String, AnyVal]
+	type Values = ImmutableMap[String, Any]
 
 }
 
@@ -20,18 +20,18 @@ object SignalState {
  */
 class SignalState(val values: SignalState.Values, val updated: List[String] = List()) {
 
-	type Values = ImmutableMap[String, AnyVal]
+	type Values = ImmutableMap[String, Any]
 
-	def this(updatedValues: BaseMap[String, AnyVal], base: SignalState) = {
+	def this(updatedValues: BaseMap[String, Any], base: SignalState) = {
 		this(base.values ++ updatedValues, updatedValues.keys.toList)
 	}
 
-	def this() = this(new HashMap[String, AnyVal]())
+	def this() = this(new HashMap[String, Any]())
 
 	/**
 	 * Returns the given signal’s value, if any.
 	 */
-	def signalValue(name: String): Option[AnyVal] = values.get(name)
+	def signalValue(name: String): Option[Any] = values.get(name)
 
 	/**
 	 * Returns the given signal’s value, or the default value if no value is set.

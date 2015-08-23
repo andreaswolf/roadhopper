@@ -19,6 +19,20 @@ class SignalStateTest extends FunSuite {
 		assert(subject.signalValue("foo").get == 1.0)
 	}
 
+	test("Objects can be stored and fetched") {
+		val data: Object = new Object()
+		val subject = new SignalState(HashMap("foo" -> data))
+
+		assert(subject.signalValue("foo").get == data)
+	}
+
+	test("Objects can be stored and fetched with type hint") {
+		val data: Object = new Object()
+		val subject = new SignalState(HashMap("foo" -> data))
+
+		assertResult(data)(subject.signalValue[Object]("foo", new Object()))
+	}
+
 	test("Values are correctly updated when using old map as base") {
 		val oldMap = new SignalState(HashMap("foo" -> 1.0, "bar" -> 2))
 		val subject = new SignalState(HashMap("foo" -> 3.0), oldMap)
