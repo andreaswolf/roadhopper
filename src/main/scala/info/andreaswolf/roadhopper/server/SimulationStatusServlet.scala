@@ -40,6 +40,7 @@ class SimulationStatusServlet extends BaseServlet {
 		if (simulation.isFinished) {
 			status.key("result").value(serializeSimulationResult(simulation.result))
 		}
+		status.key("time").value(simulation.result.map.keySet.max)
 
 		resp.getWriter.append(status.endObject().toString)
 	}

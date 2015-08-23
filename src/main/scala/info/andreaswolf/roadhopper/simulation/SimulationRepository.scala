@@ -23,8 +23,6 @@ class SimulationRepository {
 	def add(sim: T) = {
 		simulations.put(sim.identifier, sim)
 		log.debug(s"Added simulation with id ${sim.identifier}")
-
-		Thread.sleep(5000)
 	}
 
 	def getByIdentifier[T](id: String) = simulations.get(id).get
