@@ -1,5 +1,8 @@
 package info.andreaswolf.roadhopper.simulation
 
+import java.lang.Long
+import java.util.Date
+
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
@@ -24,12 +27,15 @@ object ActorBasedSimulation extends App {
 		val points: List[GHPoint] = List(new GHPoint(49.010796, 8.375444), new GHPoint(49.01271, 8.418016))
 		val route = routeFactory.simplify(routeFactory.getRoute(points).parts, 2.0)
 
-		val simulation: ActorBasedSimulation = new ActorBasedSimulation(route)
+		val simulation: ActorBasedSimulation = new ActorBasedSimulation(route, new SimulationResult)
 		simulation.start()
 	}
 }
 
-class ActorBasedSimulation(val route: Route) {
+class ActorBasedSimulation(val route: Route, val result: SimulationResult) {
+
+	val identifier = Long.toHexString(new Date().getTime + ((Math.random() - 0.5) * 10e10).round)
+
 	val actorSystem = ActorSystem.create("roadhopper")
 
 	val timer = actorSystem.actorOf(Props[TwoStepSimulationTimer], "timer")
@@ -48,6 +54,8 @@ class ActorBasedSimulation(val route: Route) {
 	def start() = timer ! StartSimulation()
 
 	def shutdown() = actorSystem.shutdown()
+
+	def isFinished = actorSystem.isTerminated
 
 	def registerActor(actor: Props, name: String): ActorRef = {
 		val actorRef = actorSystem.actorOf(actor, name)

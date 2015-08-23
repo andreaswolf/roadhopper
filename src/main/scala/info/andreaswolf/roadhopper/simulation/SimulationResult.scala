@@ -2,6 +2,7 @@ package info.andreaswolf.roadhopper.simulation
 
 import scala.collection.mutable
 
+
 class SimulationResult {
 
 	val map = new mutable.HashMap[Int, VehicleState]()

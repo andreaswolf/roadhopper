@@ -7,13 +7,13 @@ import com.graphhopper.http.JsonWriter;
 import com.graphhopper.routing.util.FlagEncoder;
 import com.graphhopper.storage.NodeAccess;
 import com.graphhopper.storage.extensions.RoadSignEncoder;
-import com.graphhopper.util.PointList;
 import com.graphhopper.util.StopWatch;
 import com.graphhopper.util.shapes.GHPoint;
 import gnu.trove.procedure.TIntProcedure;
 import info.andreaswolf.roadhopper.RoadHopper;
 import info.andreaswolf.roadhopper.road.*;
 import org.json.JSONObject;
+import org.json.JSONStringer;
 import scala.collection.JavaConversions;
 
 import javax.inject.Inject;
@@ -34,13 +34,46 @@ public class RoadHopperServlet extends GraphHopperServlet
 	@Inject
 	private RoadHopper hopper;
 
+	@Inject
+	private RouteRepository routeRepository;
+
 	@Override
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException
 	{
 		// TODO this code is copied from GraphHopperServlet
 		try
 		{
-			doRoute(req, res);
+			GHResponse response;
+
+			if (req.getParameter("id") != null)
+			{
+				String routeId = req.getParameter("id");
+				if (routeRepository.has(routeId))
+				{
+					Route route = routeRepository.getByIdentifier(routeId).get();
+
+					JsonWriter writer = new JsonWriter(hopper, true, true, true, false);
+					// fake (or rather reconstruct) a response from GraphHopper; this does not include everything, but
+					// all stuff we need. Most notably missing is timing-related information for the route
+					response = new GHResponse();
+					response.setPoints(route.getPointList());
+					response.setDistance(route.length());
+					Map<String, Object> map = serializeRoute(writer, response, route);
+
+					writeJson(req, res, new JSONObject(map));
+				} else {
+					res.setStatus(404);
+					JSONStringer messages = new JSONStringer();
+					messages.object()
+							.key("code").value(404)
+							.key("message").value("Route with id " + routeId + " not found.")
+							.endObject();
+					res.getWriter().write(messages.toString());
+				}
+			} else
+			{
+				response = doRoute(req, res);
+			}
 		} catch (IllegalArgumentException ex)
 		{
 			writeError(res, SC_BAD_REQUEST, ex.getMessage());
@@ -51,7 +84,7 @@ public class RoadHopperServlet extends GraphHopperServlet
 		}
 	}
 
-	protected void doRoute(HttpServletRequest httpRequest, HttpServletResponse httpResponse) throws Exception
+	protected GHResponse doRoute(HttpServletRequest httpRequest, HttpServletResponse httpResponse) throws Exception
 	{
 		// TODO this is mostly copied from GraphHopperServlet
 		List<GHPoint> infoPoints = getPoints(httpRequest, "point");
@@ -95,11 +128,15 @@ public class RoadHopperServlet extends GraphHopperServlet
 
 			ghRsp = hopper.route(request);
 			info.andreaswolf.roadhopper.route.Route route = hopper.createRoute(request);
+
 			RouteFactory factory = new RouteFactory(hopper);
 			hopperRoute = factory.createRouteFromPaths(JavaConversions.asScalaBuffer(route.getPaths()).toList());
-			if (getParam(httpRequest, "simplify", "1").equals("1")) {
+			if (getParam(httpRequest, "simplify", "1").equals("1"))
+			{
 				hopperRoute = factory.simplify(hopperRoute.parts(), 2.0);
 			}
+
+			routeRepository.add(hopperRoute);
 		}
 
 		float took = sw.stop().getSeconds();
@@ -119,24 +156,8 @@ public class RoadHopperServlet extends GraphHopperServlet
 			writeResponse(httpResponse, createGPXString(httpRequest, httpResponse, ghRsp));
 		} else
 		{
-			JsonWriter writer = new JsonWriter(hopper);
-			Map<String, Object> map = writer.createJson(ghRsp,
-					calcPoints, pointsEncoded, enableElevation, enableInstructions);
-
-			if (hopperRoute != null)
-			{
-				GeoJsonEncoder encoder = new GeoJsonEncoder();
-				List<Object> pointList = encoder.encodeRoute(hopperRoute);
-
-				map.put("points", pointList);
-
-				List<Object> additionalInfo = new ArrayList<Object>(10);
-				analyzeRoadBends(additionalInfo, hopperRoute);
-				map.put("additionalInfo", additionalInfo);
-
-				// TODO enrich response with more information;
-				//new TrafficSignEnricher().enrich(map, route);
-			}
+			JsonWriter writer = new JsonWriter(hopper, calcPoints, pointsEncoded, enableElevation, enableInstructions);
+			Map<String, Object> map = serializeRoute(writer, ghRsp, hopperRoute);
 
 			Object infoMap = map.get("info");
 			if (infoMap != null)
@@ -145,10 +166,34 @@ public class RoadHopperServlet extends GraphHopperServlet
 			writeJson(httpRequest, httpResponse, new JSONObject(map));
 		}
 
+		return ghRsp;
+	}
+
+	private Map<String, Object> serializeRoute(JsonWriter writer, GHResponse ghRsp, Route hopperRoute)
+	{
+		Map<String, Object> outputMap = writer.createJson(ghRsp);
+
+		if (hopperRoute != null) {
+			GeoJsonEncoder encoder = new GeoJsonEncoder();
+			List<Object> pointList = encoder.encodeRoute(hopperRoute);
+
+			outputMap.put("routeId", hopperRoute.identifier());
+			outputMap.put("points", pointList);
+
+			List<Object> additionalInfo = new ArrayList<Object>(10);
+			analyzeRoadBends(additionalInfo, hopperRoute);
+			outputMap.put("additionalInfo", additionalInfo);
+
+			// TODO enrich response with more information;
+			//new TrafficSignEnricher().enrich(map, route);
+		}
+
+		return outputMap;
 	}
 
 
-	protected void analyzeRoadBends(List<Object> points, Route route) {
+	protected void analyzeRoadBends(List<Object> points, Route route)
+	{
 		final RoadBendEvaluator evaluator = new RoadBendEvaluator();
 		final GeoJsonEncoder encoder = new GeoJsonEncoder();
 
@@ -156,7 +201,8 @@ public class RoadHopperServlet extends GraphHopperServlet
 
 		HashMap<String, Object> bendInfo;
 
-		for (RoadBend bend : JavaConversions.asJavaIterable(bends)) {
+		for (RoadBend bend : JavaConversions.asJavaIterable(bends))
+		{
 			bendInfo = new HashMap<String, Object>();
 			encoder.encodeRoadBend(bendInfo, bend);
 
@@ -180,7 +226,8 @@ public class RoadHopperServlet extends GraphHopperServlet
 					if (signEncoder.hasTrafficLight(value))
 					{
 						iconType = "trafficLight";
-					} else if (signEncoder.hasStopSign(value)) {
+					} else if (signEncoder.hasStopSign(value))
+					{
 						iconType = "stopSign";
 					}
 					towerNodeInfo.add(new PointInfo(nodeAccess.getLat(value), nodeAccess.getLon(value), iconType));

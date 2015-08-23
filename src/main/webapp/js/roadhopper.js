@@ -1,14 +1,5 @@
 var initMapOrig = initMap;
 var roadSignLayer, turnLines;
-initMap = function(selectLayer) {
-	initMapOrig(selectLayer);
-
-	roadSignLayer = L.geoJson().addTo(map);
-	layerControl.addOverlay(roadSignLayer, "Road Signs");
-
-	turnLines = L.geoJson().addTo(map);
-	layerControl.addOverlay(turnLines, "Turn lines");
-};
 
 /**
  * Converts an angle in radians to 0..360°.
@@ -23,6 +14,14 @@ function toDegrees(radians) {
 
 var graphHopperIntegration = {
 	drawRouteCallbacks: [],
+	modulesSelector: '#modules',
+
+	/**
+	 * The LeafletJS map. Will be set when the map is initialized.
+	 */
+	map: null,
+
+	initMapCallbacks: [],
 
 	drawRoute: function(jsonData) {
 		for (var i = 0; i < this.drawRouteCallbacks.length; ++i) {
@@ -34,10 +33,42 @@ var graphHopperIntegration = {
 
 	addRouteDrawCallback: function(callback, context) {
 		this.drawRouteCallbacks.push([callback, context]);
+	},
+
+	addModule: function(name, label, contents) {
+		var module = $('<section class="module" data-module="' + name + '" />');
+
+		module.append($('<div class="header">').text(label));
+		var $content = $('<div class="content">');
+		$content.append(contents);
+		$content.hide();
+		module.append($content);
+
+		var that = this;
+		$(function() {
+			$(that.modulesSelector).append(module);
+		})
 	}
 };
 drawRouteCallback = function(jsonData) {
 	graphHopperIntegration.drawRoute(jsonData);
+};
+initMap = function(selectLayer) {
+	initMapOrig(selectLayer);
+
+	roadSignLayer = L.geoJson().addTo(map);
+	layerControl.addOverlay(roadSignLayer, "Road Signs");
+
+	turnLines = L.geoJson().addTo(map);
+	layerControl.addOverlay(turnLines, "Turn lines");
+
+	// we can only initialize the map now, as it was not ready before
+	graphHopperIntegration.map = map;
+
+	var callbacks = graphHopperIntegration.initMapCallbacks;
+	for (var i = 0; i < callbacks.length; ++i) {
+		callbacks[i]();
+	}
 };
 
 /**
@@ -92,6 +123,8 @@ var roadhopper = {
 	},
 
 	drawRoadSigns: function(jsonData) {
+		roadSignLayer.clearLayers();
+
 		var t = 0;
 		var that = this;
 		L.geoJson(jsonData["points"], {
@@ -277,5 +310,139 @@ GHRequest.prototype.init = function(params) {
 };
 
 GHRequest.prototype.createURL = function () {
-	return this.createPath(this.host + "/roadhopper/simulate?" + this.createPointParams(false) + "&type=" + this.dataType + "&key=" + this.key);
+	return this.createPath(this.host + "/roadhopper/route?" + this.createPointParams(false) + "&type=" + this.dataType + "&key=" + this.key);
 };
+
+/**
+ * A time series, consisting of timestamps and a position for that time.
+ *
+ * @param data
+ * @constructor
+ */
+TimeSeriesDataSet = function(data) {
+	this.timestamps = [];
+	this.coordinates = [];
+	this.data = data;
+
+	// Extract all timestamps and coordinates from the data
+	for (var time in data) {
+		if (data.hasOwnProperty(time)) {
+			// if any data point is undefined, the control apparently enters an uncontrolled endless loop
+			if (data[time]["position"]["lon"] == undefined) {
+				continue;
+			}
+			this.timestamps.push(parseInt(time));
+			this.coordinates.push([data[time]["position"]["lon"], data[time]["position"]["lat"]]);
+		}
+	}
+};
+
+TimeSeriesDataSet.prototype.asGeoJSON = function() {
+	return {
+		"type": "Feature",
+		"geometry": {
+			"type": "MultiPoint",
+			"coordinates": this.coordinates
+		},
+		"properties": {
+			"time": this.timestamps
+		},
+		// The data as received from the server; used for processing further information
+		data: this.data
+	}
+};
+
+TimeSeriesDataSet.prototype.hasTime = function(time) {
+	return this.timestamps.indexOf(time) > -1;
+};
+
+TimeSeriesDataSet.prototype.directionForTime = function(time) {
+	return this.data[time.toString()]["direction"];
+};
+
+TimeSeriesDataSet.prototype.positionForTime = function(time) {
+	return this.data[time.toString()]["position"];
+};
+
+TimeSeriesDataSet.prototype.speedForTime = function(time) {
+	return this.data[time.toString()]["speed"];
+};
+
+
+TimeSeriesPlayback = function() {
+	this.timeSeries = null;
+	// initialized in draw()
+	this.playback = null;
+	this.markerDrawn = false;
+};
+
+TimeSeriesPlayback.prototype.registerCallback = function(callback) {
+	this.playback.addCallback(callback);
+};
+
+TimeSeriesPlayback.prototype.setData = function(timeSeries) {
+	if (!this.markerDrawn) {
+		this.draw();
+	}
+	this.playback.clearData();
+	this.timeSeries = timeSeries;
+	this.playback.setData(timeSeries.asGeoJSON());
+};
+
+TimeSeriesPlayback.prototype.draw = function() {
+	if (this.markerDrawn) {
+		return;
+	}
+	var that = this;
+
+	var markerIcon = L.icon({
+		iconUrl: './img/marker-36.png',
+		iconAnchor: [18, 18],
+		iconSize: [36, 36]
+	});
+
+	this.playback = new L.Playback(map, null, null, {
+		marker: function () {
+			return {
+				icon: markerIcon,
+				iconAngle: 90
+			}
+		}
+	});
+	this.playback.addCallback(function(timestamp) {
+		if (!that.timeSeries.hasTime(timestamp)) {
+			return;
+		}
+		var angle = that.timeSeries.directionForTime(timestamp) * 180 / Math.PI;
+		console.debug("Drawing " + timestamp + ": " + angle);
+
+		// ATTENTION: This is an undocumented and unsupported hack to get the marker as it is not exposed via
+		// the official API.
+		that.playback._trackController._tracks[0]._marker.setIconAngle(angle);
+	});
+	this.markerDrawn = true;
+
+	// Initialize custom control
+	this.positionMarker = new L.Playback.Control(this.playback);
+	this.positionMarker.addTo(map);
+
+};
+
+
+/**
+ * The modules menu
+ */
+(function($) {
+	$(function() {
+		var $modules = $('#modules');
+
+		$modules.find('.content').hide();
+
+		$modules.on('click', '.header', function() {
+			$modules.find('.content').hide();
+			$(this).siblings('.content').show();
+		});
+		$modules.find('.header').first().trigger('click');
+	});
+
+})(jQuery);

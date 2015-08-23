@@ -1,89 +1,111 @@
 /*
  * Copyright (c) 2015 Andreas Wolf
  *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * See te LICENSE file in the project root for further copyright information.
  */
 
 (function (roadhopper) {
 
-	var simulation = {
-		drawVehicleMarker: function (JSONdata) {
-			var markerIcon = L.icon({
-				iconUrl: './img/marker-36.png',
-				iconAnchor: [18, 18],
-				iconSize: [36, 36]
-			});
+	/**
+	 * The Leaflet.Playback instance used
+	 */
+	var playback = null;
 
-			var simulationDataGeoJson = this.convertSimulationDataToGeoJson(JSONdata["simulation"]);
+	var $simulationDataContainer = null;
 
-			var playback = new L.Playback(map, simulationDataGeoJson, null, {
-				marker: function () {
-					return {
-						icon: markerIcon,
-						iconAngle: 90
-					}
-				}
-			});
-			playback.addCallback(function(timestamp) {
-				if (!simulationDataGeoJson["data"].hasOwnProperty(timestamp.toString())) {
-					console.error("No direction for " + timestamp);
-					return;
-				}
-				var angle = simulationDataGeoJson["data"][timestamp.toString()]["direction"] * 180 / Math.PI;
+	var currentSimulation = null;
 
-				// ATTENTION: This is an undocumented and unsupported hack to get the marker as it is not exposed via
-				// the official API.
-				playback._trackController._tracks[0]._marker.setIconAngle(angle);
-			});
-
-			// Initialize custom control
-			var control = new L.Playback.Control(playback);
-			control.addTo(map);
-		},
-
-		convertSimulationDataToGeoJson: function (data) {
-			var timestamps = [], coordinates = [], direction = {};
-			for (var time in data) {
-				if (data.hasOwnProperty(time)) {
-					// if any data point is undefined, the control apparently enters an uncontrolled endless loop
-					if (data[time]["position"]["lon"] == undefined) {
-						continue;
-					}
-					timestamps.push(parseInt(time));
-					coordinates.push([data[time]["position"]["lon"], data[time]["position"]["lat"]]);
-				}
-			}
-
-			return {
-				"type": "Feature",
-				"geometry": {
-					"type": "MultiPoint",
-					"coordinates": coordinates
-				},
-				"properties": {
-					"time": timestamps
-				},
-				// The data as received from the server; used for processing further information
-				data: data
-			}
-		}
+	var Simulation = function (id) {
+		this.id = id;
 	};
 
-	roadhopper.addRouteDrawCallback(simulation.drawVehicleMarker, simulation);
+	Simulation.prototype.checkStatus = function () {
+		var sim = this;
+		$.ajax({
+			timeout: 30000,
+			url: host + '/roadhopper/simulationstatus?id=' + sim.id,
+			type: "GET",
+			dataType: "json",
+			success: function (json) {
+				if (json["status"] == "finished") {
+					$simulationDataContainer.find('.simulationstatus').text("Simulating… finished at "
+							+ Math.round(json["time"] / 1000) + "s");
+
+					// simulation has finished, draw data and don’t check again
+					sim.updateSimulationData(json);
+				} else {
+					console.log(json["time"]);
+					$simulationDataContainer.find('.simulationstatus').text("Simulating… "
+							+ Math.round(json["time"] / 1000) + "s");
+
+					// simulation has not finished, check again
+					window.setTimeout(function() {sim.checkStatus();}, 2000);
+				}
+			},
+			complete: function (xhr, status) {
+				if (status != "success") {
+					window.setTimeout(function() {sim.checkStatus();}, 2000);
+				}
+			}
+		})
+	};
+
+	Simulation.prototype.updateSimulationData = function (JSONdata) {
+		if (!playback) {
+			playback = new TimeSeriesPlayback();
+		}
+		var timeSeries = new TimeSeriesDataSet(JSONdata["result"]);
+
+		console.debug("Setting time series data for playback");
+		playback.setData(timeSeries);
+	};
+
+	var createSimulateButton = function(routeId) {
+		var button = $('<button class="simulate" />').text("Simulate");
+		button.data("route", routeId);
+
+		button.on("click", function () {
+			console.debug("Starting simulation…");
+			$.ajax({
+				timeout: 30000,
+				url: host + '/roadhopper/simulate?route=' + $(this).data("route"),
+				type: "GET",
+				dataType: "json",
+				crossDomain: true,
+				beforeSend: function () {
+					$simulationDataContainer.empty().text("Running simulation…");
+				},
+				success: function (json) {
+					if (typeof(json["simulation"]) == "undefined") {
+						alert("No simulation ID received with response; see console for details");
+						console.error("Server response for simulation request: ", json);
+						return;
+					}
+					currentSimulation = new Simulation(json["simulation"]);
+					$simulationDataContainer.empty().text("Simulation ID: " + currentSimulation.id);
+					$simulationDataContainer.append('<div class="simulationstatus" />')
+					currentSimulation.checkStatus();
+				}
+			});
+		});
+
+		return button;
+	};
+
+	$(function () {
+		// the container for simulation-related content underneath the search form
+		$simulationDataContainer = $('<div class="simulation" />');
+		$('[data-module="simulation"] .content').append($simulationDataContainer);
+	});
+
+	function displaySimulationStartButton(JSONdata) {
+		if (JSONdata["routeId"]) {
+			$('[data-module="simulation"] .content .simulation').empty().append(createSimulateButton(JSONdata["routeId"]));
+			currentSimulation = null;
+		} else {
+			alert("Did not get route ID; cannot simulate.");
+		}
+	}
+
+	roadhopper.addRouteDrawCallback(displaySimulationStartButton);
 })(graphHopperIntegration);
