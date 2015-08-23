@@ -92,6 +92,8 @@ var roadhopper = {
 	},
 
 	drawRoadSigns: function(jsonData) {
+		roadSignLayer.clearLayers();
+
 		var t = 0;
 		var that = this;
 		L.geoJson(jsonData["points"], {
