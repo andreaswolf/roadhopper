@@ -12,6 +12,36 @@ import util.control.Breaks._
 import scala.collection.convert.decorateAll._
 import scala.collection.mutable.ListBuffer
 
+
+object RouteFactory {
+
+	def simplifyRoadSegments(parts: List[RoadSegment], delta: Double): ListBuffer[RoadSegment] = {
+		val segments = new ListBuffer[RoadSegment]
+		// as read access to the head of a list is more convenient, we always insert elements at the beginning -> the result
+		// will be inverted
+		segments prepend parts.head
+		for (currentSegment <- parts.tail) {
+			// TODO this code part is really ugly – check if we can improve this
+			val lastSegment: RoadSegment = segments.head
+			// make sure we have a small change in orientation and the last segment has no road sign at the end
+			if (lastSegment.roadSign.isEmpty && Math.abs(
+					(lastSegment.orientation - currentSegment.orientation).toDegrees
+				) < delta && lastSegment.speedLimit == currentSegment.speedLimit) {
+
+				val newSegment: RoadSegment = new RoadSegment(
+					lastSegment.start, currentSegment.end, currentSegment.speedLimit
+				)
+				newSegment.setRoadSign(currentSegment.roadSign)
+				segments update(0, newSegment)
+			} else {
+				segments prepend currentSegment
+			}
+		}
+		segments
+	}
+
+}
+
 class RouteFactory(val hopper: RoadHopper) {
 
 	val log = LoggerFactory.getLogger("RouteFactory")
@@ -47,7 +77,7 @@ class RouteFactory(val hopper: RoadHopper) {
 				for (point <- edge.fetchWayGeometry(3)) {
 					breakable {
 						if (lastPoint.isDefined && point.equals(lastPoint.get)) {
-							break
+							break()
 						}
 
 						lastPoint.foreach(p => {
@@ -77,32 +107,11 @@ class RouteFactory(val hopper: RoadHopper) {
 	}
 
 	def simplify(parts: List[RoadSegment], delta: Double = 2.0): Route = {
-		val segments = new ListBuffer[RoadSegment]
-
 		if (parts.isEmpty) {
-			return new Route(segments.result())
+			return new Route(List())
 		}
 
-		// as read access to the head of a list is more convenient, we always insert elements at the beginning -> the result
-		// will be inverted
-		segments prepend parts.head
-		for (currentSegment <- parts.tail) {
-			// TODO this code part is really ugly – check if we can improve this
-			val lastSegment: RoadSegment = segments.head
-			// make sure we have a small change in orientation and the last segment has no road sign at the end
-			if (lastSegment.roadSign.isEmpty && Math.abs(
-					(lastSegment.orientation - currentSegment.orientation).toDegrees
-				) < delta && lastSegment.speedLimit == currentSegment.speedLimit) {
-
-				val newSegment: RoadSegment = new RoadSegment(
-					lastSegment.start, currentSegment.end, currentSegment.speedLimit
-				)
-				newSegment.setRoadSign(currentSegment.roadSign)
-				segments update(0, newSegment)
-			} else {
-				segments prepend currentSegment
-			}
-		}
+		val segments: ListBuffer[RoadSegment] = RouteFactory.simplifyRoadSegments(parts, delta)
 
 		new Route(segments.result().reverse)
 	}
