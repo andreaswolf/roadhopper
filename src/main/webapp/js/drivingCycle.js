@@ -25,7 +25,10 @@
  */
 (function (roadhopper) {
 
-	var margins = {top: 20, right: 30, bottom: 20, left: 15};
+	var margins = {top: 20, right: 15, bottom: 40, left: 40},
+			height = 200,
+			width = 500;
+
 	var drivingCycle = {
 		/**
 		 * The driving cycle graph
@@ -36,15 +39,17 @@
 		height: 200 - margins.top - margins.bottom,
 		width: 500 - margins.left - margins.right,
 
-		draw: function (JSONdata) {
+		draw: function (timeSeries) {
 			// see http://bl.ocks.org/mbostock/1166403 for some of the inspiration used for this code
-			var values = this.getVelocityOverTime(JSONdata["simulation"]);
+			var values = timeSeries.timestamps.map(function (timestamp) {
+				return [timestamp, timeSeries.speedForTime(timestamp)];
+			});
 
 			// Scales and axes.
 			var x = d3.scale.linear().range([0, this.width]),
 					y = d3.scale.linear().range([this.height, 0]),
 					xAxis = d3.svg.axis().scale(x).tickSize(-this.height).tickSubdivide(true),
-					yAxis = d3.svg.axis().scale(y).ticks(4).orient("right");
+					yAxis = d3.svg.axis().scale(y).ticks(4).orient("left");
 
 			x.domain([values[0][0], values[values.length - 1][0] / 1000]);
 			y.domain([0, d3.max(values, function (d) {
@@ -58,6 +63,21 @@
 			this.graph = container.append("svg")
 					.attr("class", "d3-diagram")
 					.data(values);
+
+			// the axis labels
+			this.graph.append("text")
+					.attr("transform", "rotate(-90)")
+					.attr("y", 0)
+					.attr("x", 0 - (height / 2))
+					.attr("dy", "15px")
+					.style("text-anchor", "middle")
+					.text("Speed [m/s]");
+			this.graph.append("text")
+					.attr("y", height)
+					.attr("x", width / 2)
+					.attr("dy", "-10px")
+					.style("text-anchor", "middle")
+					.text("Time [s]");
 
 			// the chart canvas
 			var chartCanvas = this.graph.append("g")
@@ -81,7 +101,6 @@
 					.call(xAxis);
 			chartCanvas.append("g")
 					.attr("class", "y axis")
-					.attr("transform", "translate(" + this.width + ",0)")
 					.call(yAxis);
 
 
@@ -116,8 +135,8 @@
 					.attr("d", area(values));
 
 
-			var position = JSONdata["simulation"]["0"]["position"];
-			var positionMarker = L.circleMarker(new L.LatLng(position['lat'], position['lon']), {
+			var initialPosition = timeSeries.positionForTime(timeSeries.timestamps[0]);
+			var positionMarker = L.circleMarker(new L.LatLng(initialPosition['lat'], initialPosition['lon']), {
 				clickable: false
 			});
 
@@ -161,30 +180,26 @@
 								actualValue = (interpolatedTime - leftValue[0] > rightValue[0] - interpolatedTime)
 										? rightValue : leftValue;
 						if (typeof(actualValue) != "undefined") {
-							var dataEntry = JSONdata["simulation"][actualValue[0]];
-							var position = dataEntry["position"];
+							var currentTime = actualValue[0];
+							var position = timeSeries.positionForTime(currentTime);
 							positionMarker.setLatLng(new L.LatLng(position['lat'], position['lon']));
-							focus.select("text").text(dataEntry["speed"].toFixed(1) + " m/s ("
-									+ (dataEntry["speed"] * 3.6).toFixed(1) + " km/h)"
+							focus.select("text").text(timeSeries.speedForTime(currentTime).toFixed(1) + " m/s ("
+									+ (timeSeries.speedForTime(currentTime) * 3.6).toFixed(1) + " km/h)"
 							);
 							// TODO update text position if we are too far to the right
 							focus.attr("transform", "translate(" + d3.mouse(this)[0] + "," + y(actualValue[1]) + ")");
 						}
 					});
-		},
-
-		getVelocityOverTime: function (data) {
-			var points = [];
-			for (var time in data) {
-				if (data.hasOwnProperty(time)) {
-					points.push([time, data[time]["speed"]]);
-				}
-			}
-			return points;
 		}
 	};
 
-	roadhopper.addRouteDrawCallback(drivingCycle.draw, drivingCycle);
+	var drawDrivingCycle = function (JSONdata) {
+		// TODO only create the data set once in a central location
+		var timeSeries = new TimeSeriesDataSet(JSONdata["simulation"]);
+		drivingCycle.draw.apply(drivingCycle, [timeSeries])
+	};
+
+	roadhopper.addRouteDrawCallback(drawDrivingCycle);
 
 	return drivingCycle;
 

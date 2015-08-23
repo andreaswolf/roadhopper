@@ -6,87 +6,106 @@
 
 (function (roadhopper) {
 
-	var simulation = {
-		markerDrawn: false,
+	/**
+	 * The Leaflet.Playback instance used
+	 */
+	var playback = null;
 
-		/**
-		 * The Leaflet.Playback instance used
-		 */
-		playback: null,
+	var $simulationDataContainer = null;
 
-		/**
-		 * The vehicle position marker
-		 */
-		positionMarker: null,
-		data: null,
+	var currentSimulation = null;
 
-		drawVehicleMarker: function (JSONdata) {
-			var markerIcon = L.icon({
-				iconUrl: './img/marker-36.png',
-				iconAnchor: [18, 18],
-				iconSize: [36, 36]
-			});
-
-			this.data = this.convertSimulationDataToGeoJson(JSONdata["simulation"]);
-
-			if (!this.markerDrawn) {
-				this.playback = new L.Playback(map, this.data, null, {
-					marker: function () {
-						return {
-							icon: markerIcon,
-							iconAngle: 90
-						}
-					}
-				});
-				this.playback.addCallback(function(timestamp) {
-					if (!simulation.data["data"].hasOwnProperty(timestamp.toString())) {
-						console.error("No direction for " + timestamp);
-						return;
-					}
-					var angle = simulation.data["data"][timestamp.toString()]["direction"] * 180 / Math.PI;
-
-					// ATTENTION: This is an undocumented and unsupported hack to get the marker as it is not exposed via
-					// the official API.
-					simulation.playback._trackController._tracks[0]._marker.setIconAngle(angle);
-				});
-				this.markerDrawn = true;
-
-				// Initialize custom control
-				this.positionMarker = new L.Playback.Control(this.playback);
-				this.positionMarker.addTo(map);
-			} else {
-				this.playback.clearData();
-				this.playback.setData(simulation.data);
-			}
-		},
-
-		convertSimulationDataToGeoJson: function (data) {
-			var timestamps = [], coordinates = [], direction = {};
-			for (var time in data) {
-				if (data.hasOwnProperty(time)) {
-					// if any data point is undefined, the control apparently enters an uncontrolled endless loop
-					if (data[time]["position"]["lon"] == undefined) {
-						continue;
-					}
-					timestamps.push(parseInt(time));
-					coordinates.push([data[time]["position"]["lon"], data[time]["position"]["lat"]]);
-				}
-			}
-
-			return {
-				"type": "Feature",
-				"geometry": {
-					"type": "MultiPoint",
-					"coordinates": coordinates
-				},
-				"properties": {
-					"time": timestamps
-				},
-				// The data as received from the server; used for processing further information
-				data: data
-			}
-		}
+	var Simulation = function (id) {
+		this.id = id;
 	};
 
-	roadhopper.addRouteDrawCallback(simulation.drawVehicleMarker, simulation);
+	Simulation.prototype.checkStatus = function () {
+		var sim = this;
+		$.ajax({
+			timeout: 30000,
+			url: host + '/roadhopper/simulationstatus?id=' + sim.id,
+			type: "GET",
+			dataType: "json",
+			success: function (json) {
+				if (json["status"] == "finished") {
+					$simulationDataContainer.find('.simulationstatus').text("Simulating… finished at "
+							+ Math.round(json["time"] / 1000) + "s");
+
+					// simulation has finished, draw data and don’t check again
+					sim.updateSimulationData(json);
+				} else {
+					console.log(json["time"]);
+					$simulationDataContainer.find('.simulationstatus').text("Simulating… "
+							+ Math.round(json["time"] / 1000) + "s");
+
+					// simulation has not finished, check again
+					window.setTimeout(function() {sim.checkStatus();}, 2000);
+				}
+			},
+			complete: function (xhr, status) {
+				if (status != "success") {
+					window.setTimeout(function() {sim.checkStatus();}, 2000);
+				}
+			}
+		})
+	};
+
+	Simulation.prototype.updateSimulationData = function (JSONdata) {
+		if (!playback) {
+			playback = new TimeSeriesPlayback();
+		}
+		var timeSeries = new TimeSeriesDataSet(JSONdata["result"]);
+
+		console.debug("Setting time series data for playback");
+		playback.setData(timeSeries);
+	};
+
+	var createSimulateButton = function(routeId) {
+		var button = $('<button class="simulate" />').text("Simulate");
+		button.data("route", routeId);
+
+		button.on("click", function () {
+			console.debug("Starting simulation…");
+			$.ajax({
+				timeout: 30000,
+				url: host + '/roadhopper/simulate?route=' + $(this).data("route"),
+				type: "GET",
+				dataType: "json",
+				crossDomain: true,
+				beforeSend: function () {
+					$simulationDataContainer.empty().text("Running simulation…");
+				},
+				success: function (json) {
+					if (typeof(json["simulation"]) == "undefined") {
+						alert("No simulation ID received with response; see console for details");
+						console.error("Server response for simulation request: ", json);
+						return;
+					}
+					currentSimulation = new Simulation(json["simulation"]);
+					$simulationDataContainer.empty().text("Simulation ID: " + currentSimulation.id);
+					$simulationDataContainer.append('<div class="simulationstatus" />')
+					currentSimulation.checkStatus();
+				}
+			});
+		});
+
+		return button;
+	};
+
+	$(function () {
+		// the container for simulation-related content underneath the search form
+		$simulationDataContainer = $('<div class="simulation" />');
+		$('[data-module="simulation"] .content').append($simulationDataContainer);
+	});
+
+	function displaySimulationStartButton(JSONdata) {
+		if (JSONdata["routeId"]) {
+			$('[data-module="simulation"] .content .simulation').empty().append(createSimulateButton(JSONdata["routeId"]));
+			currentSimulation = null;
+		} else {
+			alert("Did not get route ID; cannot simulate.");
+		}
+	}
+
+	roadhopper.addRouteDrawCallback(displaySimulationStartButton);
 })(graphHopperIntegration);

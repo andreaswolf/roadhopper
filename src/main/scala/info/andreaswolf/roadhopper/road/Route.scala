@@ -1,6 +1,21 @@
 package info.andreaswolf.roadhopper.road
 
+import com.graphhopper.util.PointList
+
+/**
+ * A route used as the basis for a simulation.
+ *
+ * @param parts The road segments this route consists of. Strictly ordered.
+ */
 class Route(val parts: List[RoadSegment]) {
+
+	/**
+	 * The identifier for this route, used to track it across requests.
+	 *
+	 * Note that this is not guaranteed to be globally unique, but for our purpose a session-unique identifier is fully
+	 * sufficient.
+	 */
+	val identifier: String = java.lang.Long.toHexString(new java.util.Date().getTime)
 
 	/**
 	 * The length of the road
@@ -43,6 +58,13 @@ class Route(val parts: List[RoadSegment]) {
 		})
 
 		new Tuple2(0.0, 0.0) :: coordinates
+	}
+
+	def getPointList: PointList = {
+		val list = new PointList()
+		list.add(parts.head.start)
+		parts.foreach(part => list.add(part.end))
+		list
 	}
 
 }
