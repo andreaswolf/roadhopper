@@ -4,6 +4,7 @@ import com.graphhopper.GraphHopper;
 import com.graphhopper.http.DefaultModule;
 import com.graphhopper.util.CmdArgs;
 import info.andreaswolf.roadhopper.RoadHopper;
+import info.andreaswolf.roadhopper.road.RouteRepository;
 
 
 public class RoadHopperModule extends DefaultModule
@@ -26,6 +27,7 @@ public class RoadHopperModule extends DefaultModule
 	protected void configure()
 	{
 		super.configure();
-		bind(RoadHopper.class).toInstance((RoadHopper)getGraphHopper());
+		bind(RoadHopper.class).toInstance((RoadHopper) getGraphHopper());
+		bind(RouteRepository.class).toInstance(new RouteRepository());
 	}
 }
