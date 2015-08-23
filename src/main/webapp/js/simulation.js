@@ -28,13 +28,15 @@
 			dataType: "json",
 			success: function (json) {
 				if (json["status"] == "finished") {
-					$simulationDataContainer.find('.simulationstatus').text("Simulating… finished at " + json["time"] + "ms");
+					$simulationDataContainer.find('.simulationstatus').text("Simulating… finished at "
+							+ Math.round(json["time"] / 1000) + "s");
 
 					// simulation has finished, draw data and don’t check again
 					sim.updateSimulationData(json);
 				} else {
 					console.log(json["time"]);
-					$simulationDataContainer.find('.simulationstatus').text("Simulating… " + json["time"] + "ms");
+					$simulationDataContainer.find('.simulationstatus').text("Simulating… "
+							+ Math.round(json["time"] / 1000) + "s");
 
 					// simulation has not finished, check again
 					window.setTimeout(function() {sim.checkStatus();}, 2000);

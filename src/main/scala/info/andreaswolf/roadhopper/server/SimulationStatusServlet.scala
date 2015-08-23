@@ -15,6 +15,9 @@ import org.json.{JSONWriter, JSONStringer}
 import scala.collection.{JavaConversions, mutable}
 
 
+/**
+ * Reports the status of a simulation. Also returns the results if the simulation is finished.
+ */
 class SimulationStatusServlet extends BaseServlet {
 
 	@Inject val simulationRepository: SimulationRepository = null
@@ -23,7 +26,7 @@ class SimulationStatusServlet extends BaseServlet {
 		val simulationId = req.getParameter("id")
 
 		if (simulationId == null) {
-			writeError(resp, 404, s"No simulation id given")
+			writeError(resp, 400, s"No simulation id given")
 			return
 		}
 		if (!simulationRepository.has(simulationId)) {

@@ -42,6 +42,7 @@ class SimulationServlet extends GraphHopperServlet {
 			val points = getPoints(req, "point")
 			if (points.size() < 2) {
 				writeError(res, 400, "At least two points must be given for simulation")
+				return
 			}
 			val routeFactory = new RouteFactory(roadHopper)
 			route = routeFactory.simplify(routeFactory.getRoute(points.asScala.toList).parts, 2.0)
