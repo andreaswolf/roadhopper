@@ -1,15 +1,14 @@
 package info.andreaswolf.roadhopper.server
 
 import java.util
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import akka.actor.Props
 import com.google.inject.Inject
 import com.graphhopper.http.GraphHopperServlet
 import com.graphhopper.util.StopWatch
-import com.graphhopper.util.shapes.BBox
 import info.andreaswolf.roadhopper.RoadHopper
-import info.andreaswolf.roadhopper.road.{Route, RouteRepository, RouteFactory}
+import info.andreaswolf.roadhopper.road.{Route, RouteFactory, RouteRepository}
 import info.andreaswolf.roadhopper.simulation._
 import org.json.JSONObject
 
@@ -49,13 +48,13 @@ class SimulationServlet extends GraphHopperServlet {
 		}
 
 		val result = new SimulationResult()
-		val simulation: ActorBasedSimulation = new ActorBasedSimulation(route, result)
+		val simulation = new SignalBasedSimulation(route, result)
 		simulationRepository.add(simulation)
 
-		simulation.registerActor(
-			Props(new SimulationResultLogger(result, simulation.timer, 250, simulation.vehicle)),
-			"resultWriter"
+		val resultLogger = simulation.actorSystem.actorOf(
+			Props(new SignalsBasedResultLogger(result, simulation.signalBus, 250)), "resultWriter"
 		)
+		simulation.subscribeToSignal("time", resultLogger)
 
 		val sw = new StopWatch().start()
 
