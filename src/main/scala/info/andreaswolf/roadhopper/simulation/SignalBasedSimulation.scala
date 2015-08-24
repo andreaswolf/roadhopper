@@ -43,9 +43,7 @@ object SignalBasedSimulation extends App {
 	}
 }
 
-class SignalBasedSimulation(val route: Route, val result: SimulationResult) {
-
-	val identifier = Long.toHexString(new Date().getTime + ((Math.random() - 0.5) * 10e10).round)
+class SignalBasedSimulation(val route: Route, override val result: SimulationResult) extends Simulation(result) {
 
 	val actorSystem = ActorSystem.create("signals")
 

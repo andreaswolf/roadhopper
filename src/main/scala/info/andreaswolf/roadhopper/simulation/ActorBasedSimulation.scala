@@ -32,11 +32,11 @@ object ActorBasedSimulation extends App {
 	}
 }
 
-class ActorBasedSimulation(val route: Route, val result: SimulationResult) {
-
-	val identifier = Long.toHexString(new Date().getTime + ((Math.random() - 0.5) * 10e10).round)
+class ActorBasedSimulation(val route: Route, override val result: SimulationResult) extends Simulation(result) {
 
 	val actorSystem = ActorSystem.create("roadhopper")
+
+	implicit val timeout = Timeout(10 seconds)
 
 	val timer = actorSystem.actorOf(Props[TwoStepSimulationTimer], "timer")
 
@@ -49,7 +49,6 @@ class ActorBasedSimulation(val route: Route, val result: SimulationResult) {
 	val driver = registerActor(Props(new TwoStepDriverActor(timer, vehicle, journey)), "driver")
 	val monitor = registerActor(Props(new VehicleStatusMonitor(timer, 2000, vehicle)), "monitor")
 
-	implicit val timeout = Timeout(1 day)
 
 	def start() = timer ! StartSimulation()
 

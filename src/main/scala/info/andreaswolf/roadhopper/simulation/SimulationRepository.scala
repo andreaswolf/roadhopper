@@ -13,7 +13,7 @@ import scala.collection.mutable
 
 class SimulationRepository {
 
-	type T = ActorBasedSimulation
+	type T = Simulation
 
 	val log = LoggerFactory.getLogger(this.getClass)
 
