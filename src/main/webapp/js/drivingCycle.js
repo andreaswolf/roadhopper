@@ -85,6 +85,7 @@
 					.call(xAxis);
 			chartCanvas.append("g")
 					.attr("class", "y axis")
+					.attr("transform", "translate(-1,0)")
 					.call(yAxis);
 
 
