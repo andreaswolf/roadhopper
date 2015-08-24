@@ -177,13 +177,10 @@
 		}
 	};
 
-	var drawDrivingCycle = function (JSONdata) {
-		// TODO only create the data set once in a central location
-		var timeSeries = new TimeSeriesDataSet(JSONdata["simulation"]);
-		drivingCycle.draw.apply(drivingCycle, [timeSeries])
-	};
-
-	roadhopper.addRouteDrawCallback(drawDrivingCycle);
+	Simulation.prototype.registerDataUpdateCallback(function(timeSeries) {
+		console.debug("Updating data");
+		drivingCycle.draw.apply(drivingCycle, [timeSeries]);
+	});
 
 	return drivingCycle;
 
