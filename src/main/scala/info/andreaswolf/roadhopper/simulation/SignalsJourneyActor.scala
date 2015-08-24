@@ -1,16 +1,31 @@
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{ActorLogging, ActorRef, Actor}
+import akka.actor.{ActorLogging, ActorRef}
 import akka.pattern.ask
-import com.graphhopper.util.shapes.GHPoint3D
 import info.andreaswolf.roadhopper.road.{RoadSegment, Route}
 import info.andreaswolf.roadhopper.simulation.signals.SignalBus.UpdateSignalValue
-import info.andreaswolf.roadhopper.simulation.signals.{SignalState, Process}
+import info.andreaswolf.roadhopper.simulation.signals.{Process, SignalState}
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.Future
 
 
+case class GetRoadAhead(length: Int)
+
+// TODO rename this class once we got rid of RoadAhead in JourneyActor
+case class ReturnRoadAhead(road: List[RoadSegment])
+
+
+/**
+ * This actor is responsible for tracking the progress of the vehicle along the route.
+ * <p/>
+ * It updates the position (signal "pos") and the current road segment ("seg") according to the travelled distance ("s").
+ * It also tracks the remaining road segments and knows the vehicle’s orientation (according to the current road
+ * segment).
+ * <p/>
+ * The actor can also be asked by other components to return a given length of the road ahead. See [[GetRoadAhead]] and
+ * [[ReturnRoadAhead]] for more information.
+ */
 class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val route: Route)
 	extends Process(signalBus) with ActorLogging {
 
@@ -18,32 +33,56 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 
 	val length = route.parts.map(_.length).sum
 
+	/**
+	 * The segments remaining after the current segment
+	 */
 	var remainingSegments = route.parts.tail
+	/**
+	 * The full segment the vehicle is currently on
+	 */
 	var currentSegment = route.parts.head
+	/**
+	 * The remaining part of the segment the vehicle is currently on
+	 */
+	var currentSegmentRest = route.parts.head
+	/**
+	 * The distance that was travelled until the start of the current segment
+	 */
 	var travelledUntilCurrentSegment = 0.0
 
 	var currentTime = 0
 
-	var currentPosition: Option[GHPoint3D] = None
+	var travelledDistance = 0.0
+	def currentPosition = currentSegmentRest.start
 
 	var active = true
 
-	def updateRoad(travelledDistance: Double): Future[Any] = {
+
+	registerReceiver({
+		case GetRoadAhead(requestedLength) =>
+			sender ! ReturnRoadAhead(getRoadAhead(requestedLength))
+	})
+
+	def updateRoad(): Future[Any] = {
 		// TODO dynamically calculate the distance to get (e.g. based on speed) or get it passed with the request
 		// check if we have probably advanced past the current segment
-		checkCurrentSegment(travelledDistance)
+		checkCurrentSegment()
+		updateCurrentSegmentRest()
 
-		// make sure we only get segments after the current segment
-		val remainingOnCurrentSegment = currentSegment.length - (travelledDistance - travelledUntilCurrentSegment)
+		Future.sequence(List(
+			signalBus ? UpdateSignalValue("pos", currentSegmentRest.start),
+			signalBus ? UpdateSignalValue("seg", currentSegment)
+		))
+	}
+
+	def getRoadAhead(length: Double = 150.0): List[RoadSegment] = {
 		// if the length to get is 0, we will be on the current segment for all of the look-ahead distance
-		var lengthToGet = Math.max(0, 150.0 - remainingOnCurrentSegment)
-
-		val offsetOnCurrentSegment = travelledDistance - travelledUntilCurrentSegment
+		var lengthToGet = Math.max(0, length - currentSegmentRest.length)
 
 		val segmentsAhead = new ListBuffer[RoadSegment]
 		// rare edge case: we travelled exactly to the end of the segment => we must skip it here
-		if (remainingOnCurrentSegment > 0.0) {
-			segmentsAhead append RoadSegment.fromExisting(offsetOnCurrentSegment, currentSegment)
+		if (currentSegmentRest.length > 0.0) {
+			segmentsAhead append currentSegmentRest
 		}
 		remainingSegments.foreach(segment => {
 			if (lengthToGet > 0) {
@@ -51,7 +90,6 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 				lengthToGet -= segment.length
 			}
 		})
-		currentPosition = Some(segmentsAhead.head.start)
 		// if there are no more journey parts left after the current ones, this journey will end
 		//val journeyEndsAfterFilteredSegments: Boolean = remainingSegments.length == segmentsAhead.length - 1
 
@@ -60,10 +98,7 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 			f" got length: ${segmentsAhead.toList.map(_.length).sum}%.2f;" +
 			f" segments: ${segmentsAhead.length - 1}/${remainingSegments.length}")
 
-		Future.sequence(List(
-			signalBus ? UpdateSignalValue("pos", segmentsAhead.head.start),
-			signalBus ? UpdateSignalValue("seg", currentSegment)
-		))
+		segmentsAhead.toList
 	}
 
 	/**
@@ -74,27 +109,31 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 			return Future.successful()
 		}
 
-		val travelledDistance: Double = signals.signalValue[Double]("s", 0.0)
+		travelledDistance = signals.signalValue[Double]("s", 0.0)
 		val currentSpeed: Double = signals.signalValue[Double]("v", 0.0)
 
 		if (currentSpeed == 0.0 && Math.abs(travelledDistance - length) < 1.5) {
 			active = false
 			timer ! Stop()
 		}
-		updateRoad(travelledDistance)
+		updateRoad()
 	}
 
+	def updateCurrentSegmentRest() = {
+		val offsetOnCurrentSegment = travelledDistance - travelledUntilCurrentSegment
+
+		currentSegmentRest = RoadSegment.fromExisting(offsetOnCurrentSegment, currentSegment)
+	}
 
 	/**
 	 * Checks if we are still on the current segment or if we moved beyond it and need to adjust the segment
 	 * and the vehicle orientation
 	 *
-	 * @param position The current position on the journey, i.e. along the road to travel
 	 * @return true if we are still within the road to travel, false if the journey has ended
 	 */
-	def checkCurrentSegment(position: Double): Boolean = {
+	def checkCurrentSegment(): Boolean = {
 		// are we at or beyond the current segment’s end?
-		if (travelledUntilCurrentSegment + currentSegment.length - position > 10e-3) {
+		if (travelledUntilCurrentSegment + currentSegment.length - travelledDistance > 0.0) {
 			return true
 		}
 
