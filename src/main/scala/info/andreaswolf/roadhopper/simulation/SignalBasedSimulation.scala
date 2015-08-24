@@ -6,9 +6,16 @@
 
 package info.andreaswolf.roadhopper.simulation
 
-import akka.actor.{ActorSystem, Props}
+import java.lang.Long
+import java.util.Date
+
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.graphhopper.util.CmdArgs
+import com.graphhopper.util.shapes.GHPoint
+import info.andreaswolf.roadhopper.RoadHopper
+import info.andreaswolf.roadhopper.road.{Route, RouteFactory}
 import info.andreaswolf.roadhopper.simulation.control.{PT1, PIDController}
 import info.andreaswolf.roadhopper.simulation.driver.{TargetVelocityEstimator, VelocityController}
 import info.andreaswolf.roadhopper.simulation.signals.{SignalState, SignalBus}
@@ -16,12 +23,31 @@ import info.andreaswolf.roadhopper.simulation.signals.SignalBus.{UpdateSignalVal
 import info.andreaswolf.roadhopper.simulation.vehicle.{VehicleFactory, VehicleParameters}
 
 import scala.collection.mutable
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
 
 object SignalBasedSimulation extends App {
-	val actorSystem = ActorSystem.create("futures")
+	override def main(args: Array[String]): Unit = {
+		val cmdArgs = CmdArgs.read(args)
+		val roadHopperInstance = new RoadHopper
+		roadHopperInstance.forServer().init(cmdArgs)
+		roadHopperInstance.importOrLoad()
+
+		val routeFactory = new RouteFactory(roadHopperInstance)
+		val points: List[GHPoint] = List(new GHPoint(49.010796, 8.375444), new GHPoint(49.01271, 8.418016))
+		val route = routeFactory.simplify(routeFactory.getRoute(points).parts, 2.0)
+
+		val simulation: SignalBasedSimulation = new SignalBasedSimulation(route, new SimulationResult)
+		simulation.start()
+	}
+}
+
+class SignalBasedSimulation(val route: Route, val result: SimulationResult) {
+
+	val identifier = Long.toHexString(new Date().getTime + ((Math.random() - 0.5) * 10e10).round)
+
+	val actorSystem = ActorSystem.create("signals")
 
 	import actorSystem.dispatcher
 	implicit val timeout = Timeout(10 seconds)
@@ -48,18 +74,37 @@ object SignalBasedSimulation extends App {
 	private val loggedSignals: mutable.Map[Int, SignalState] = new mutable.HashMap[Int, SignalState]()
 	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, loggedSignals)))
 
-	Future.sequence(List(
-		timer ? RegisterActor(signalBus),
-		timer ? RegisterActor(vehicle),
-		signalBus ? SubscribeToSignal("time", signalLogger),
-		signalBus ? SubscribeToSignal("time", velocityEstimator),
-		signalBus ? SubscribeToSignal("time", velocityController),
-		signalBus ? SubscribeToSignal("v_diff", velocityController),
-		signalBus ? SubscribeToSignal("alpha_in", gasPedal)
-	)) onSuccess {
-		case x =>
-			println("Starting")
-			timer ! StartSimulation()
+	def start() = {
+		Future.sequence(List(
+			timer ? RegisterActor(signalBus),
+			timer ? RegisterActor(vehicle),
+			signalBus ? SubscribeToSignal("time", signalLogger),
+			signalBus ? SubscribeToSignal("time", velocityEstimator),
+			signalBus ? SubscribeToSignal("time", velocityController),
+			signalBus ? SubscribeToSignal("v_diff", velocityController),
+			signalBus ? SubscribeToSignal("alpha_in", gasPedal)
+		)) onSuccess {
+			case x =>
+				println("Starting")
+				timer ! StartSimulation()
+		}
 	}
 
+	def shutdown() = actorSystem.shutdown()
+
+	def isFinished = actorSystem.isTerminated
+
+	def registerActor(actor: Props, name: String): ActorRef = {
+		val actorRef = actorSystem.actorOf(actor, name)
+
+		implicit val timeout = Timeout(1 day)
+		Await.result(timer ? RegisterActor(actorRef), 1 second)
+
+		actorRef
+	}
+
+	def subscribeToSignal(signalName: String, actor: ActorRef) = {
+		implicit val timeout = Timeout(1 day)
+		Await.result(signalBus ? SubscribeToSignal(signalName, actor), 1 second)
+	}
 }
