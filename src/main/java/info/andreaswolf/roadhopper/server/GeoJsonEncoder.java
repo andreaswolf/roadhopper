@@ -60,6 +60,7 @@ class GeoJsonEncoder
 		partInfo.put("coordinates", points);
 		partInfo.put("length", segment.length());
 		partInfo.put("orientation", segment.orientation());
+		partInfo.put("speedLimit", segment.speedLimit());
 	}
 
 	public void encodeRoadSign(List<Object> pointList, RoadSign sign)
