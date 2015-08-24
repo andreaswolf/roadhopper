@@ -178,6 +178,7 @@
 	};
 
 	Simulation.prototype.registerDataUpdateCallback(function(timeSeries) {
+		$('#map').find('.driving-cycle').remove();
 		console.debug("Updating data");
 		drivingCycle.draw.apply(drivingCycle, [timeSeries]);
 	});
