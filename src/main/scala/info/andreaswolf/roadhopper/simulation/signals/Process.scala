@@ -8,7 +8,7 @@ package info.andreaswolf.roadhopper.simulation.signals
 
 import akka.actor.{ActorRef, Actor}
 import akka.util.Timeout
-import info.andreaswolf.roadhopper.simulation.TellTime
+import info.andreaswolf.roadhopper.simulation.{ExtensibleReceiver, TellTime}
 import info.andreaswolf.roadhopper.simulation.signals.Process._
 
 import scala.concurrent.Future
@@ -28,14 +28,23 @@ object Process {
  *
  * @param bus The signal bus instance. Optional.
  */
-abstract class Process(val bus: ActorRef) extends Actor {
+abstract class Process(val bus: ActorRef) extends Actor with ExtensibleReceiver {
 
 	implicit val timeout = Timeout(10 seconds)
 	import context.dispatcher
 
 	var time: Int = 0
 
-	def receive = {
+	/**
+	 * The list of message handlers.
+	 * <p/>
+	 * See [[registerReceiver()]] for more information on how to add your own handlers.
+	 * <p/>
+	 * WARNING: it is undefined in which order the case statements from the different Receive instances will be invoked
+	 * (as the list is not ordered). If we need to explicitly override any of the cases defined here, we need to convert
+	 * this List() into something with explicit ordering.
+	 */
+	registerReceiver({
 		case TellTime(_time) =>
 			val oldTime = time
 			val originalSender = sender()
@@ -52,7 +61,8 @@ abstract class Process(val bus: ActorRef) extends Actor {
 					originalSender ! true
 			}
 
-	}
+	})
+
 
 	def timeAdvanced(oldTime: Int, newTime: Int): Future[Any] = Future.successful()
 

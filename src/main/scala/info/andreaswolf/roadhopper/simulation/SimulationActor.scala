@@ -26,7 +26,7 @@ case class StepAct()
  * <p/>
  * See https://stackoverflow.com/a/8683439/3987705 for the inspiration for this trait.
  */
-trait SimulationActor extends Actor with ActorLogging {
+trait SimulationActor extends Actor with ActorLogging with ExtensibleReceiver {
 	implicit val timeout = Timeout(60 seconds)
 	import context.dispatcher
 
@@ -45,7 +45,7 @@ trait SimulationActor extends Actor with ActorLogging {
 	 * (as the list is not ordered). If we need to explicitly override any of the cases defined here, we need to convert
 	 * this List() into something with explicit ordering.
 	 */
-	var _receive : List[Receive] = List(
+	registerReceiver(
 		{
 			case TellTime(currentTime) =>
 				val oldTime = time
@@ -84,28 +84,6 @@ trait SimulationActor extends Actor with ActorLogging {
 
 
 	def timeAdvanced(oldTime: Int, newTime: Int ): Future[Any] = Future.successful()
-
-	/**
-	 * Registers a new receiver. Call with a partial function to make the actor accept additional types of messages.
-	 * <p/>
-	 * Example:
-	 * <p/>
-	 * <pre>
-	 * registerReceiver {
-	 *   case MyMessage() =>
-	 *     // code to handle MyMessage()
-	 * }</pre>
-	 * <p/>
-	 * WARNING the execution order of the receive functions is currently undefined. If you need to override an existing
-	 *         message handler, make sure to fix this issue first!
-	 */
-	def registerReceiver(receive: Actor.Receive) { _receive = receive :: _receive }
-
-	/**
-	 * The receive function, must not be overridden. Instead, register your own receiver function with
-	 * [[registerReceiver()]]
-	 */
-	final def receive =  _receive reduce {_ orElse _}
 
 	/**
 	 * Handler for [[Start]] messages.
