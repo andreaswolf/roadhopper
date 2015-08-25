@@ -13,9 +13,11 @@ import com.google.inject.Inject
 import com.graphhopper.util.CmdArgs
 import com.graphhopper.util.shapes.GHPoint3D
 import info.andreaswolf.roadhopper.road.{RoadBuilder, RouteFactory}
-import org.json.{JSONObject, JSONStringer}
+import org.json.{JSONArray, JSONObject, JSONStringer}
 import org.slf4j.LoggerFactory
 
+import scala.collection.immutable.TreeSet
+import scala.collection.mutable.ListBuffer
 import scala.collection.{JavaConversions, mutable}
 import scala.io.Source
 
@@ -34,6 +36,66 @@ class MeasurementsServlet extends HttpServlet {
 		//import scala.math.Ordered.orderingToOrdered
 
 		def compare(that: MeasurementPoint): Int = this.date compare that.date
+	}
+
+	class MeasurementFile(val lines: Iterator[String], val headerLine: String = null) {
+		lines.next()
+
+		lazy val groups = {
+			val items = new ListBuffer[Set[MeasurementPoint]]()
+
+			val buffer = TreeSet.newBuilder[MeasurementPoint]
+			//
+			var timeStandingStill = 0
+
+			def endMeasurementGroup(): Unit = {
+				val newSet = buffer.result()
+				if (newSet.nonEmpty) {
+					items.append(buffer.result())
+				}
+				buffer.clear()
+				timeStandingStill = 0
+			}
+
+			for (line <- lines) {
+				// using ";0,000;" as an indicator that the speed is 0
+				if (line.indexOf(";0,000;") > -1) {
+					timeStandingStill += 1
+				} else {
+					// vehicle did not move for more than ten seconds => start new measurement
+					if (timeStandingStill > 10) {
+						endMeasurementGroup()
+					}
+				}
+
+				val Array(time, _latitude, _longitude, _velocity, _heading) = line.split(";").map(_.trim)
+				// NOTE only some of our files had a velocity in knots; therefore, we assume km/h for now.
+				val velocityKmh = _velocity.replace(",", ".").toDouble
+				val latitude = _latitude.replace(",", ".").toDouble
+				val longitude = _longitude.replace(",", ".").toDouble
+				val orientation = _heading.replace(",", ".").toDouble.toRadians
+
+				// only include one measurement per second
+				if (time.indexOf(",") == -1 || time.split(",").apply(1).equals("00")) {
+					// ignore slow movements for creating the road
+					if (velocityKmh > 1.0) {
+						handlePointForRoad(latitude, longitude, velocityKmh)
+					}
+
+					try {
+						val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60 + time.substring(4, 6).toLong) * 1000
+
+						buffer += new MeasurementPoint(date, new GHPoint3D(latitude, longitude, 0.0), velocityKmh, orientation)
+					} catch {
+						case ex: NumberFormatException =>
+							log.error(s"Could not parse time '$time': ${ex.getMessage}")
+					}
+				}
+			}
+			endMeasurementGroup()
+
+			items.toList
+		}
 	}
 
 
@@ -67,9 +129,8 @@ class MeasurementsServlet extends HttpServlet {
 			jsonFiles.endArray().endObject()
 			resp.getWriter.append(jsonFiles.toString)
 		} else {
-			//log.debug("Files: " + )
 			val source = Source.fromFile(basePath + filename).getLines()
-
+/*
 			val headerLine = source.take(1).next()
 
 			for (line <- source) {
@@ -79,34 +140,38 @@ class MeasurementsServlet extends HttpServlet {
 				val longitude = _longitude.replace(",", ".").toDouble
 				val orientation = _heading.replace(",", ".").toDouble.toRadians
 
-				val Array(_, milliseconds) = time.split(",")
-
 				// only include one measurement per second
-				if (milliseconds.equals("00")) {
+				if (time.indexOf(",") == -1 || time.split(",").apply(1).equals("00")) {
 					// ignore slow movements for creating the road
 					if (velocityKmh > 1.0) {
 						handlePointForRoad(latitude, longitude, velocityKmh)
 					}
 
-					val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60 + time.substring(4, 6).toLong) * 1000
+					try {
+						val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60 + time.substring(4, 6).toLong) * 1000
 
-					measurements add (new MeasurementPoint(date, new GHPoint3D(latitude, longitude, 0.0), velocityKmh, orientation))
+						measurements add (new MeasurementPoint(date, new GHPoint3D(latitude, longitude, 0.0), velocityKmh, orientation))
+					} catch {
+						case ex: NumberFormatException =>
+							log.error(s"Could not parse time '$time': ${ex.getMessage}")
+					}
 				}
 			}
+*/
+			val file = new MeasurementFile(source)
 
-			val jsonContents = new mutable.LinkedHashMap[String, Object]()
+			val jsonContents = new JSONStringer().`object`()
 
-			jsonContents.put("measurements", convertMeasurements())
+			jsonContents.key("measurements").value(convertMeasurementsFile(file))
 
-			convertRoadForFrontend(jsonContents)
+			jsonContents.key("road").value(convertRoadForFrontend())
 
-			val json = new JSONObject(JavaConversions.mapAsJavaMap(jsonContents))
-			resp.getWriter.append(json.toString)
+			resp.getWriter.append(jsonContents.endObject().toString)
 		}
 	}
 
 
-	def convertRoadForFrontend(jsonContents: mutable.LinkedHashMap[String, Object]): Unit = {
+	def convertRoadForFrontend(): JSONObject = {
 		val road = roadBuilder map {
 			_.build
 		} get
@@ -114,26 +179,34 @@ class MeasurementsServlet extends HttpServlet {
 
 		val points: List[GHPoint3D] = road.map(_.end) :+ road.head.start
 
-		jsonContents.put("road", JavaConversions.mapAsJavaMap(
+		val json = new JSONObject()
+		json.put("road", JavaConversions.mapAsJavaMap(
 			Map(
 				"before optimization" -> road.size,
 				"after optimization" -> optimizedRoad.size,
 				"segments" -> JavaConversions.seqAsJavaList(points)
 			)
 		))
+		json
 	}
 
-	def convertMeasurements(): Object = {
-		val serialized = new mutable.LinkedHashMap[Long, Object]()
-		for (measurement <- measurements) {
-			val stateInfo = new mutable.HashMap[String, Any]()
+	def convertMeasurementsFile(measurementFile: MeasurementFile): JSONArray = {
+		val json = new JSONArray()
 
-			stateInfo.put("position", measurement.position)
-			stateInfo.put("speed", measurement.velocity)
-			stateInfo.put("direction", measurement.orientation)
-			serialized.put(measurement.date, JavaConversions.mutableMapAsJavaMap(stateInfo))
+		// the measurement groups
+		for (measurement <- measurementFile.groups) {
+			val obj = new JSONObject()
+			// the measurements within one group
+			for (datum <- measurement) {
+				obj.put(datum.date.toString, new JSONObject(JavaConversions.mapAsJavaMap(Map(
+					"position" -> datum.position,
+					"speed" -> datum.velocity,
+					"direction" ->datum.orientation
+				))))
+			}
+			json.put(obj)
 		}
-		JavaConversions.mutableMapAsJavaMap(serialized)
+		json
 	}
 
 	def handlePointForRoad(latitude: Double, longitude: Double, velocity: Double) = {
