@@ -21,6 +21,8 @@ case class Stop()
 
 case class RegisterActor(actor: ActorRef)
 
+case class RegisterProcess(process: ActorRef)
+
 case class ScheduleStep(time: Int, actor: ActorRef)
 
 
@@ -37,6 +39,8 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 	var running = false
 
 	val actors = new ListBuffer[ActorRef]()
+
+	val processes = new ListBuffer[ActorRef]()
 
 	val timeSchedule = new mutable.HashMap[Int, ListBuffer[ActorRef]]()
 
@@ -89,9 +93,9 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 			val actorsToCall = timeSchedule.remove(nextTime).get.distinct
 
 			{
-				// tell time to actors…
+				// tell time to actors and processes…
 				val actorFutures = new ListBuffer[Future[Any]]()
-				actors.foreach { actor => actorFutures.append(actor ? TellTime(currentTime)) }
+				(actors ++ processes).foreach { actor => actorFutures.append(actor ? TellTime(currentTime)) }
 				// wait for the result of the StepUpdate messages ...
 				Future.sequence(actorFutures.toList)
 			} flatMap {
@@ -99,7 +103,7 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 					// … call update step …
 					val actorFutures = new ListBuffer[Future[Any]]()
 					actorsToCall.foreach(actor => {
-						actorFutures.append(actor ? StepUpdate(currentTime))
+						actorFutures.append(actor ? StepUpdate())
 					})
 					// wait for the result of the StepUpdate messages ...
 					Future.sequence(actorFutures.toList)
@@ -114,7 +118,7 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 
 						val actorFutures = new ListBuffer[Future[Any]]()
 						actorsToCall.foreach(actor => {
-							actorFutures.append(actor ? StepAct(currentTime))
+							actorFutures.append(actor ? StepAct())
 						})
 						// wait for the result of the StepAct messages
 						// TODO properly check for an error here -> transform this block to this:
@@ -135,7 +139,11 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 	def receive = {
 		case RegisterActor(actor) =>
 			actors append actor
-			sender ! true
+			sender() ! true
+
+		case RegisterProcess(process) =>
+			processes append process
+			sender() ! true
 
 		case StartSimulation() =>
 			start()

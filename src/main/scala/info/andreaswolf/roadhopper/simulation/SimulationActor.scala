@@ -11,9 +11,9 @@ case class TellTime(time: Int)
 
 case class Start()
 
-case class StepUpdate(time: Int)
+case class StepUpdate()
 
-case class StepAct(time: Int)
+case class StepAct()
 
 
 /**
@@ -26,7 +26,7 @@ case class StepAct(time: Int)
  * <p/>
  * See https://stackoverflow.com/a/8683439/3987705 for the inspiration for this trait.
  */
-trait SimulationActor extends Actor with ActorLogging {
+trait SimulationActor extends Actor with ActorLogging with ExtensibleReceiver {
 	implicit val timeout = Timeout(60 seconds)
 	import context.dispatcher
 
@@ -45,11 +45,16 @@ trait SimulationActor extends Actor with ActorLogging {
 	 * (as the list is not ordered). If we need to explicitly override any of the cases defined here, we need to convert
 	 * this List() into something with explicit ordering.
 	 */
-	var _receive : List[Receive] = List(
+	registerReceiver(
 		{
 			case TellTime(currentTime) =>
+				val oldTime = time
+				val originalSender = sender()
 				time = currentTime
-				sender() ! true
+				timeAdvanced(oldTime, currentTime) andThen {
+					case x =>
+						originalSender ! true
+				}
 
 			// TODO Make a method that creates a ListBuffer of Futures and turns them into a sequence that is then checked by the individual methods in here
 			case Start() =>
@@ -61,14 +66,14 @@ trait SimulationActor extends Actor with ActorLogging {
 						originalSender ! true
 				}
 
-			case StepUpdate(time) =>
+			case StepUpdate() =>
 				val originalSender = sender()
 				stepUpdate() andThen {
 					case x =>
 						originalSender ! true
 				}
 
-			case StepAct(time) =>
+			case StepAct() =>
 				val originalSender = sender()
 				stepAct() andThen {
 					case x =>
@@ -77,27 +82,8 @@ trait SimulationActor extends Actor with ActorLogging {
 		}
 	)
 
-	/**
-	 * Registers a new receiver. Call with a partial function to make the actor accept additional types of messages.
-	 * <p/>
-	 * Example:
-	 * <p/>
-	 * <pre>
-	 * registerReceiver {
-	 *   case MyMessage() =>
-	 *     // code to handle MyMessage()
-	 * }</pre>
-	 * <p/>
-	 * WARNING the execution order of the receive functions is currently undefined. If you need to override an existing
-	 *         message handler, make sure to fix this issue first!
-	 */
-	def registerReceiver(receive: Actor.Receive) { _receive = receive :: _receive }
 
-	/**
-	 * The receive function, must not be overridden. Instead, register your own receiver function with
-	 * [[registerReceiver()]]
-	 */
-	final def receive =  _receive reduce {_ orElse _}
+	def timeAdvanced(oldTime: Int, newTime: Int ): Future[Any] = Future.successful()
 
 	/**
 	 * Handler for [[Start]] messages.

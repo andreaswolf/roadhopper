@@ -4,6 +4,10 @@
  * See te LICENSE file in the project root for further copyright information.
  */
 
+var Simulation = function (id) {
+	this.id = id;
+};
+
 (function (roadhopper) {
 
 	/**
@@ -15,8 +19,10 @@
 
 	var currentSimulation = null;
 
-	var Simulation = function (id) {
-		this.id = id;
+	Simulation.callbacks = [];
+
+	Simulation.prototype.registerDataUpdateCallback = function(cb) {
+		Simulation.callbacks.push(cb);
 	};
 
 	Simulation.prototype.checkStatus = function () {
@@ -58,6 +64,11 @@
 
 		console.debug("Setting time series data for playback");
 		playback.setData(timeSeries);
+
+		for(var i = 0; i < Simulation.callbacks.length; ++i) {
+			var callback = Simulation.callbacks[i];
+			callback.apply(this, [timeSeries]);
+		}
 	};
 
 	var createSimulateButton = function(routeId) {
