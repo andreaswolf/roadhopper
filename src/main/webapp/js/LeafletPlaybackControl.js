@@ -114,6 +114,13 @@ L.Playback.Control = L.Control.extend({
       }
     });
 
+    map.on('playback:set:data', function () {
+      var _slider = $('#time-slider');
+      _slider.slider('option', 'min', playback.getStartTime());
+      _slider.slider('option', 'max', playback.getEndTime());
+      _slider.slider('option', 'value', playback.getTime());
+    });
+
     $('#speed-slider').slider({
       min: -9,
       max: 9,
