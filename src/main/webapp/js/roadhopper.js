@@ -374,10 +374,14 @@ TimeSeriesPlayback = function() {
 	// initialized in draw()
 	this.playback = null;
 	this.markerDrawn = false;
+	this.callbacks = []
 };
 
 TimeSeriesPlayback.prototype.registerCallback = function(callback) {
-	this.playback.addCallback(callback);
+	this.callbacks.push(callback);
+	if (this.playback) {
+		this.playback.addCallback(callback);
+	}
 };
 
 TimeSeriesPlayback.prototype.setData = function(timeSeries) {
@@ -409,6 +413,9 @@ TimeSeriesPlayback.prototype.draw = function() {
 			}
 		}
 	});
+	for (var i = 0; i < this.callbacks.length; ++i) {
+		this.playback.addCallback(this.callbacks[i]);
+	}
 	this.playback.addCallback(function(timestamp) {
 		if (!that.timeSeries.hasTime(timestamp)) {
 			return;
