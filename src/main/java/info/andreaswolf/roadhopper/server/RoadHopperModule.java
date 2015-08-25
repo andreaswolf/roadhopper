@@ -10,9 +10,13 @@ import info.andreaswolf.roadhopper.simulation.SimulationRepository;
 
 public class RoadHopperModule extends DefaultModule
 {
+
+	protected CmdArgs args;
+
 	public RoadHopperModule(CmdArgs args)
 	{
 		super(args);
+		this.args = args;
 	}
 
 	@Override
@@ -31,5 +35,6 @@ public class RoadHopperModule extends DefaultModule
 		bind(RoadHopper.class).toInstance((RoadHopper) getGraphHopper());
 		bind(RouteRepository.class).toInstance(new RouteRepository());
 		bind(SimulationRepository.class).toInstance(new SimulationRepository());
+		bind(CmdArgs.class).toInstance(this.args);
 	}
 }

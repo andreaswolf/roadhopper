@@ -6,11 +6,14 @@
 
 package info.andreaswolf.roadhopper.server
 
+import java.io.File
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
+import com.google.inject.Inject
+import com.graphhopper.util.CmdArgs
 import com.graphhopper.util.shapes.GHPoint3D
-import info.andreaswolf.roadhopper.road.{RouteFactory, RoadBuilder}
-import org.json.JSONObject
+import info.andreaswolf.roadhopper.road.{RoadBuilder, RouteFactory}
+import org.json.{JSONObject, JSONStringer}
 import org.slf4j.LoggerFactory
 
 import scala.collection.{JavaConversions, mutable}
@@ -20,6 +23,9 @@ import scala.io.Source
  * Servlet to convert data from the measurements done by HEV to a format usable for display in the map.
  */
 class MeasurementsServlet extends HttpServlet {
+
+	@Inject
+	var args: CmdArgs = null
 
 	class MeasurementPoint(val date: Long, val position: GHPoint3D, val velocity: Double, val orientation: Double)
 		extends Ordered[MeasurementPoint] {
@@ -48,50 +54,62 @@ class MeasurementsServlet extends HttpServlet {
 	}
 
 	override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
-		val file = getParameter(req, "name", "Dienstag_1") + ".txt"
+		val filename = req.getParameter("name")
+		val basePath = args.get("measurements.path", "./measurements/")
 
-		// TODO change this path
-		val source = Source.fromFile("/home/aw/Studium/Diplomarbeit/Daten Miriam/Messdaten Ampera/" + file).getLines()
+		if (filename == null) {
+			val folder = new File(basePath)
+			val jsonFiles = new JSONStringer
+			jsonFiles.`object`().key("files").array()
 
-		val headerLine = source.take(1).next()
+			folder.listFiles().sorted.foreach({ f => jsonFiles.value(f.getName) })
 
-		for (line <- source) {
-			val Array(time, _latitude, _longitude, _velocity, _heading) = line.split(";").map(_.trim)
-			val velocityKmh = _velocity.replace(",", ".").toDouble * 1.852
-			val latitude = _latitude.replace(",", ".").toDouble
-			val longitude = _longitude.replace(",", ".").toDouble
-			val orientation = _heading.replace(",", ".").toDouble.toRadians
-			// TODO the orientation provided by the data set is bulls... derive it from the positions instead
-			// (current position -> next position)
+			jsonFiles.endArray().endObject()
+			resp.getWriter.append(jsonFiles.toString)
+		} else {
+			//log.debug("Files: " + )
+			val source = Source.fromFile(basePath + filename).getLines()
 
-			val Array(_, milliseconds) = time.split(",")
+			val headerLine = source.take(1).next()
 
-			// only include one measurement per second
-			if (milliseconds.equals("00")) {
-				// ignore slow movements for creating the road
-				if (velocityKmh > 1.0) {
-					handlePointForRoad(latitude, longitude, velocityKmh)
+			for (line <- source) {
+				val Array(time, _latitude, _longitude, _velocity, _heading) = line.split(";").map(_.trim)
+				val velocityKmh = _velocity.replace(",", ".").toDouble * 1.852
+				val latitude = _latitude.replace(",", ".").toDouble
+				val longitude = _longitude.replace(",", ".").toDouble
+				val orientation = _heading.replace(",", ".").toDouble.toRadians
+
+				val Array(_, milliseconds) = time.split(",")
+
+				// only include one measurement per second
+				if (milliseconds.equals("00")) {
+					// ignore slow movements for creating the road
+					if (velocityKmh > 1.0) {
+						handlePointForRoad(latitude, longitude, velocityKmh)
+					}
+
+					val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60 + time.substring(4, 6).toLong) * 1000
+
+					measurements add (new MeasurementPoint(date, new GHPoint3D(latitude, longitude, 0.0), velocityKmh, orientation))
 				}
-
-				val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60 + time.substring(4, 6).toLong) * 1000
-
-				measurements add (new MeasurementPoint(date, new GHPoint3D(latitude, longitude, 0.0), velocityKmh, orientation))
 			}
+
+			val jsonContents = new mutable.LinkedHashMap[String, Object]()
+
+			jsonContents.put("measurements", convertMeasurements())
+
+			convertRoadForFrontend(jsonContents)
+
+			val json = new JSONObject(JavaConversions.mapAsJavaMap(jsonContents))
+			resp.getWriter.append(json.toString)
 		}
-
-		val jsonContents = new mutable.LinkedHashMap[String, Object]()
-
-		jsonContents.put("measurements", convertMeasurements())
-
-		convertRoadForFrontend(jsonContents)
-
-		val json = new JSONObject(JavaConversions.mapAsJavaMap(jsonContents))
-		resp.getWriter.append(json.toString)
 	}
 
 
 	def convertRoadForFrontend(jsonContents: mutable.LinkedHashMap[String, Object]): Unit = {
-		val road = roadBuilder map { _.build } get
+		val road = roadBuilder map {
+			_.build
+		} get
 		val optimizedRoad = RouteFactory.simplifyRoadSegments(road, 15.0)
 
 		val points: List[GHPoint3D] = road.map(_.end) :+ road.head.start
@@ -124,7 +142,9 @@ class MeasurementsServlet extends HttpServlet {
 		roadBuilder match {
 			case None => roadBuilder = Some(new RoadBuilder(point))
 
-			case _ => roadBuilder map { _.addSegment(point) }
+			case _ => roadBuilder map {
+				_.addSegment(point)
+			}
 		}
 	}
 

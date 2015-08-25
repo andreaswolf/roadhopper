@@ -44,12 +44,15 @@
 	var fetchMeasurement = function () {
 		var measurement = $(this).data('name');
 		console.info("Starting to load data set" + measurement);
+		$('#measurement-file-indicator').text('Loading file ' + measurement + '…');
 
 		$.ajax({
 			timeout: 30000,
 			url: host + '/roadhopper/measurements?name=' + measurement,
 			success: function (json) {
 				drawMeasurement(json);
+				$('#measurement-files').hide();
+				$('#measurement-file-indicator').text('Loaded file ' + measurement);
 			},
 			error: function (err) {
 				console.error("Error while fetching measurements", err);
@@ -64,11 +67,25 @@
 	 * Constructor for the module. Creates the module contents and registers it with the roadhopper module.
 	 */
 	(function () {
-		var $moduleContents = $('<ul id="measurement-files">');
-		$moduleContents.append($('<li data-name="Dienstag_1">foo</li>'));
-		$moduleContents.on('click', 'li', fetchMeasurement);
+		var $fileList = $('<ul id="measurement-files" />');
+		var $moduleContents = $('<div id="measurement-file-indicator" />').append($fileList);
 
 		roadHopper.addModule("measurements", "Measurements", $moduleContents);
+		$fileList.on('click', 'li', fetchMeasurement);
+
+		$.ajax({
+			timeout: 30000,
+			url: host + '/roadhopper/measurements',
+			type: "GET",
+			dataType: "json",
+			crossDomain: true,
+			success: function (json) {
+				var files = json["files"];
+				for (var i = 0; i < files.length; ++i) {
+					$fileList.append($('<li data-name="' + files[i] + '">' + files[i] + '</li>'));
+				}
+			}
+		});
 	})();
 
 })(graphHopperIntegration, jQuery);
