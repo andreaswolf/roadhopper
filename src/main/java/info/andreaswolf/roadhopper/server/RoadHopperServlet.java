@@ -194,10 +194,10 @@ public class RoadHopperServlet extends GraphHopperServlet
 
 	protected void analyzeRoadBends(List<Object> points, Route route)
 	{
-		final RoadBendEvaluator evaluator = new RoadBendEvaluator();
+		final RoadBendAnalyzer evaluator = new RoadBendAnalyzer();
 		final GeoJsonEncoder encoder = new GeoJsonEncoder();
 
-		scala.collection.immutable.List<RoadBend> bends = evaluator.findBend(route.getRoadSegments());
+		scala.collection.immutable.List<RoadBend> bends = evaluator.findBends(route.getRoadSegments());
 
 		HashMap<String, Object> bendInfo;
 

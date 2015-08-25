@@ -1,26 +1,32 @@
 package info.andreaswolf.roadhopper.road
 
+import org.slf4j.LoggerFactory
+
+import scala.collection.generic.SeqFactory
 import scala.collection.mutable.ListBuffer
 
 
-class RoadBendEvaluator {
-	def findBend(roadSegments: List[RoadSegment]): List[RoadBend] = {
+class RoadBendAnalyzer {
+
+	val log = LoggerFactory.getLogger(this.getClass)
+
+	def findBends(roadSegments: List[RoadSegment]): List[RoadBend] = {
 		var turnSum = 0.0
-		var segmentCount = 0
 
 		val bends = new ListBuffer[RoadBend]
 		val currentBend = new ListBuffer[RoadSegment]
 
-		// TODO this is inaccurate as we always start at the beginning of the current segment, no matter how far we’ve
-		// progressed on it already
-		var lastSegment = roadSegments.head
-		var firstSegment = roadSegments.head
-		roadSegments.tail.foreach(seg => {
-			val angle: Double = lastSegment.calculateNecessaryTurn(seg)
+		roadSegments.sliding(2).foreach(segments => {
+			val List(segA, segB) = segments
+
+			val angle: Double = segA.calculateNecessaryTurn(segB)
+
+			log.debug("turn: " + angle.formatted("%.2f"))
 
 			// Note that we should avoid including overly long segments here. Try calculating the circle radius for each
 			// single bend, when the radius is too high, ignore it
-			if (Math.abs(angle) >= (2.0 * Math.PI / 180)) {
+			// TODO make this check depend on the maximum speed on the road segment
+			if (Math.abs(angle) >= (15.0 * Math.PI / 180)) {
 				if (Math.signum(turnSum) != Math.signum(angle)) {
 					// ignore small angles
 					if (Math.abs(turnSum) > (10.0 * Math.PI / 180)) {
@@ -29,20 +35,17 @@ class RoadBendEvaluator {
 					}
 
 					currentBend.clear()
-					currentBend append lastSegment
+					currentBend append segA
 					turnSum = 0.0
-					segmentCount = 0
-					firstSegment = null
 				}
-				if (firstSegment == null) {
-					firstSegment = seg
-				}
-				currentBend append seg
+				currentBend append segB
 				turnSum += angle
-				lastSegment = seg
-				segmentCount += 1
 			}
 		})
+		if (Math.abs(turnSum) > (10.0 * Math.PI / 180)) {
+			// turn ended; create RoadBend instance
+			bends append createRoadBend(currentBend)
+		}
 
 		bends.toList
 	}
@@ -73,6 +76,15 @@ class RoadBendEvaluator {
 			// that. Otherwise, a sharp bend between two long straight road segments (e.g. a turn in a city) will be travelled
 			// with an unlikely high velocity
 			length = Math.min(bend.head.length, bend.apply(1).length)
+
+			// the radius can be at maximum half the allowed speed in km/h (or 1.8 * speed [m/s])
+			val speedLimit = bend.map(_.speedLimit).min
+			if (speedLimit > 0) {
+				length = Math.min(
+					length,
+					speedLimit / 2 * angle
+				)
+			}
 		}
 
 		val direction = angle match {

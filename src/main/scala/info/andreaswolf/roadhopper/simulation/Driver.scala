@@ -2,7 +2,7 @@ package info.andreaswolf.roadhopper.simulation
 
 import akka.actor._
 import akka.pattern.{AskTimeoutException, ask}
-import info.andreaswolf.roadhopper.road.RoadBendEvaluator
+import info.andreaswolf.roadhopper.road.RoadBendAnalyzer
 import VelocityControlActor.{TellVehicleStatus, SetTargetVelocity, TellRoadAhead}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -15,7 +15,7 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 	var steps = 0
 	protected var currentTime = 0
 
-	val bendEvaluator = new RoadBendEvaluator
+	val bendEvaluator = new RoadBendAnalyzer
 
 	val velocityControl = context.actorOf(Props(new VelocityControlActor(timer, vehicle)), "velocityControl")
 
@@ -69,7 +69,7 @@ class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey
 					val startTime = currentTime
 					log.debug(roadParts.length + " road segment(s) immediately ahead; " + currentTime)
 					if (currentTime % 2000 == 0) {
-						log.debug(bendEvaluator.findBend(roadParts).toString())
+						log.debug(bendEvaluator.findBends(roadParts).toString())
 						log.debug(f"Road evaluation finished; $startTime -> $currentTime")
 					}
 				}
