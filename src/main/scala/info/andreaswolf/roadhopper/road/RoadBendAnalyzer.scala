@@ -10,6 +10,51 @@ class RoadBendAnalyzer {
 
 	val log = LoggerFactory.getLogger(this.getClass)
 
+	/**
+	 * Marks all turns in the list of road segments with a short road segment right before the turn point.
+	 *
+	 * The inserted road segment has a length that ensures a usable turn radius. It also marks the road segment as a turn
+	 * so the vehicle system knows about the upcoming turn
+	 *
+	 * @return
+	 */
+	def markTurns(roadSegments: List[RoadSegment]): List[RoadSegment] = {
+		val processedSegments = new ListBuffer[RoadSegment]
+
+		roadSegments.sliding(2).foreach(segments => {
+			val List(segA, segB) = segments
+
+			if (!isTurn(segA, segB)) {
+				processedSegments += segA
+			} else {
+				processedSegments ++= Turn.splitSegmentBeforeTurn(segA, segB)
+			}
+		})
+		processedSegments += roadSegments.reverse.head
+		processedSegments.toList
+	}
+
+	/**
+	 * Returns a list of road turns in the given list of (consecutive) road segments.
+	 *
+	 * @return
+	 */
+	def findTurns(roadSegments: List[RoadSegment]): List[Turn] = {
+		val turns = roadSegments.sliding(2).filter(segments => {
+			val List(segA, segB) = segments
+			isTurn(segA, segB)
+		}).map[Turn](segments => {
+			val List(segA, segB) = segments
+			new Turn(segA, segB)
+		})
+
+		turns.toList
+	}
+
+	private def isTurn(segA: RoadSegment, segB: RoadSegment): Boolean = {
+		Math.abs(segA.calculateNecessaryTurn(segB)) >= 25.0 * Math.PI / 180
+	}
+
 	def findBends(roadSegments: List[RoadSegment]): List[RoadBend] = {
 		var turnSum = 0.0
 

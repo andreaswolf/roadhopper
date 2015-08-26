@@ -135,6 +135,8 @@ public class RoadHopperServlet extends GraphHopperServlet
 			{
 				hopperRoute = factory.simplify(hopperRoute.parts(), 2.0);
 			}
+			RoadBendAnalyzer analyzer = new RoadBendAnalyzer();
+			hopperRoute = new Route(analyzer.markTurns(hopperRoute.parts()));
 
 			routeRepository.add(hopperRoute);
 		}

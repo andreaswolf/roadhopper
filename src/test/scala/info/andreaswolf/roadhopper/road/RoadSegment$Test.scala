@@ -62,17 +62,32 @@ class RoadSegment$Test extends FunSuite {
 
 	forAll(coordinatesForExisting) {
 		(name: String, lat1: Double, lon1: Double, lat2: Double, lon2: Double) =>
-			test(f"$name: new segment has correct length") {
+			test(f"$name: new segment from end has correct length") {
 				val base = RoadSegment.fromCoordinates(lat1, lon1, lat2, lon2)
 
+				// these three use an offset from the end of the segment
 				val tenMetersFromStart = RoadSegment.fromExisting(10, base)
 				Assert.assertEquals(base.length - 10, tenMetersFromStart.length, 10e-3)
 
 				val tenMetersBeforeEnd = RoadSegment.fromExisting(base.length - 10, base)
 				Assert.assertEquals(10, tenMetersBeforeEnd.length, 10e-3)
 
-				val center = RoadSegment.fromExisting(base.length / 2, base)
-				Assert.assertEquals(base.length / 2, center.length, 10e-3)
+				val centerFromEnd = RoadSegment.fromExisting(base.length / 2, base)
+				Assert.assertEquals(base.length / 2, centerFromEnd.length, 10e-3)
+			}
+
+			test(f"$name: new segment from start has correct length") {
+				val base = RoadSegment.fromCoordinates(lat1, lon1, lat2, lon2)
+
+				// these two use an offset from the start of the segment
+				val tenMetersFromEnd = RoadSegment.fromExisting(base, 10)
+				Assert.assertEquals(base.length - 10, tenMetersFromEnd.length, 10e-3)
+
+				val tenMetersAfterStart = RoadSegment.fromExisting(base, base.length - 10)
+				Assert.assertEquals(10, tenMetersAfterStart.length, 10e-3)
+
+				val centerFromStart = RoadSegment.fromExisting(base, base.length / 2)
+				Assert.assertEquals(base.length / 2, centerFromStart.length, 10e-3)
 			}
 	}
 

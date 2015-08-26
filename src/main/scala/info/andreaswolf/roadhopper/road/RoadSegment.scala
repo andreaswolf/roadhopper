@@ -72,6 +72,31 @@ object RoadSegment {
 	}
 
 	/**
+	 * Constructs a road segment from another segment with the given offset from the end. The start point will be the same
+	 * as for the base segment
+	 *
+	 * @param base The road segment to use as base
+	 * @param offset The offset from the end in meters
+	 * @return
+	 */
+	def fromExisting(base: RoadSegment, offset: Double) = {
+		if (offset > base.length) {
+			throw new IllegalArgumentException(f"Offset must be within the base segment’s length: $offset vs. ${base.length}")
+		}
+
+		// see http://www.movable-type.co.uk/scripts/latlong.html
+		val oldLat = base.end.lat.toRadians
+		val oldLon = base.end.lon.toRadians
+
+		val newLat = Math.asin(Math.sin(oldLat) * Math.cos(offset / R) -
+			Math.cos(oldLat) * Math.sin(offset / R) * Math.cos(base.orientation))
+		val newLon = oldLon - Math.atan2(Math.sin(base.orientation) * Math.sin(offset / R) * Math.cos(oldLat),
+			Math.cos(offset / R) - Math.sin(oldLat) * Math.sin(newLat))
+
+		new RoadSegment(base, new GHPoint3D(newLat.toDegrees, newLon.toDegrees, 0.0))
+	}
+
+	/**
 	 * Returns the length and orientation of the road segment. The returned length is slightly inaccurate, as
 	 * the calculation does not take into account the bended earth surface
 	 *
@@ -110,6 +135,11 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D, val speedLimit: Doub
 
 	def this(start: GHPoint3D, base: RoadSegment) {
 		this(start, base.end, base.speedLimit)
+		roadSign = base.roadSign
+	}
+
+	def this(base: RoadSegment, end: GHPoint3D) {
+		this(base.start, end, base.speedLimit)
 		roadSign = base.roadSign
 	}
 
