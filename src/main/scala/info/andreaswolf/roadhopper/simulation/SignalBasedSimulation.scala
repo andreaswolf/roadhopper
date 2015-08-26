@@ -67,8 +67,7 @@ class SignalBasedSimulation(val route: Route, override val result: SimulationRes
 	val velocityController = actorSystem.actorOf(Props(new PIDController("v_diff", "alpha_in", -0.0069, -2.59e-3, 5.35e-8, signalBus)))
 	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 10, 500.0, 0.0, signalBus)))
 
-	private val loggedSignals: mutable.Map[Int, SignalState] = new mutable.HashMap[Int, SignalState]()
-	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, loggedSignals)))
+	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, result)))
 
 	def start() = {
 		Future.sequence(List(
