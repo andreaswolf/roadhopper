@@ -17,7 +17,7 @@ import info.andreaswolf.roadhopper.simulation.control.{PIDController, PT1}
 import info.andreaswolf.roadhopper.simulation.driver.{TargetVelocityEstimator, VelocityController}
 import info.andreaswolf.roadhopper.simulation.signals.SignalBus.SubscribeToSignal
 import info.andreaswolf.roadhopper.simulation.signals.{SignalBus, SignalState}
-import info.andreaswolf.roadhopper.simulation.vehicle.{VehicleFactory, VehicleParameters}
+import info.andreaswolf.roadhopper.simulation.vehicle.{Brake, VehicleFactory, VehicleParameters}
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -56,7 +56,8 @@ class SignalBasedSimulation(val route: Route, override val result: SimulationRes
 		wheelRadius = 32, wheelDragCoefficient = 0.012,
 		maximumEnginePower = 84000, maximumEngineTorque = 200, maximumEngineRpm = 12000,
 		engineEfficiencyFactor = 95,
-		transmissionRatio = 10.0
+		transmissionRatio = 10.0,
+		maximumBrakingForce = 2000
 	)
 
 	val vehicle = new VehicleFactory(actorSystem, timer, signalBus).createVehicle(vehicleParameters)
@@ -66,6 +67,8 @@ class SignalBasedSimulation(val route: Route, override val result: SimulationRes
 	val driver = actorSystem.actorOf(Props(new VelocityController(signalBus)))
 	val velocityController = actorSystem.actorOf(Props(new PIDController("v_diff", "alpha_in", -0.0069, -2.59e-3, 5.35e-8, signalBus)))
 	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 10, 500.0, 0.0, signalBus)))
+	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 10, -500.0, 0.0, signalBus)))
+	val brake = actorSystem.actorOf(Props(new Brake("beta", "beta*", 0, signalBus)))
 
 	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, result)))
 
@@ -78,7 +81,9 @@ class SignalBasedSimulation(val route: Route, override val result: SimulationRes
 			signalBus ? SubscribeToSignal("s", velocityEstimator),
 			signalBus ? SubscribeToSignal("time", velocityController),
 			signalBus ? SubscribeToSignal("v_diff", velocityController),
-			signalBus ? SubscribeToSignal("alpha_in", gasPedal)
+			signalBus ? SubscribeToSignal("alpha_in", gasPedal),
+			signalBus ? SubscribeToSignal("alpha_in", brakePedal),
+			signalBus ? SubscribeToSignal("beta", brake)
 		)) onSuccess {
 			case x =>
 				println("Starting")

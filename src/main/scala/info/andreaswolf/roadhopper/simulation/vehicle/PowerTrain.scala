@@ -9,9 +9,9 @@ package info.andreaswolf.roadhopper.simulation.vehicle
 import akka.actor.{Props, ActorLogging, ActorRef}
 import akka.pattern.ask
 import info.andreaswolf.roadhopper.simulation.SimulationActor
-import info.andreaswolf.roadhopper.simulation.control.{DeadTime, PT1}
+import info.andreaswolf.roadhopper.simulation.control.{FirstOrderBlock, DeadTime, PT1}
 import info.andreaswolf.roadhopper.simulation.signals.SignalBus.{SubscribeToSignal, UpdateSignalValue}
-import info.andreaswolf.roadhopper.simulation.signals.{SignalState, Process}
+import info.andreaswolf.roadhopper.simulation.signals.{SignalBus, SignalState, Process}
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
@@ -19,6 +19,38 @@ import scala.concurrent.duration._
 class PowerTrain(val throttle: ActorRef, val motor: ActorRef,
                  timer: ActorRef, signalBus: ActorRef) extends SimulationActor {
 
+}
+
+class Brake(val inputSignalName: String, val outputSignalName: String, val delay: Int,
+            signalBus: ActorRef) extends Process(signalBus) {
+
+	import context.dispatcher
+
+	val controlBlock = new FirstOrderBlock {
+		/**
+		 * Computes a new output value based on the function this class should implement.
+		 *
+		 * @return The new output value
+		 */
+		override def computeOutput(currentInput: Double, timeSpan: Int): Double = {
+			currentInput.round.min(100.0 toLong).max(0.0 toLong)
+		}
+	}
+
+	override def timeAdvanced(oldTime: Int, newTime: Int): Future[Unit] = Future {
+		controlBlock.timeAdvanced(oldTime, newTime)
+	}
+
+	/**
+	 * The central routine of a process. This is invoked whenever a subscribed signal’s value changes.
+	 */
+	override def invoke(signals: SignalState): Future[Any] = {
+		if (controlBlock.update(signals.signalValue[Double](inputSignalName, 0.0))) {
+			signalBus ? UpdateSignalValue(outputSignalName, controlBlock.nextState.currentOutput)
+		} else {
+			Future.successful()
+		}
+	}
 }
 
 
@@ -93,8 +125,10 @@ class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Pr
 
 		val engineForce: Double = signals.signalValue("M", 0.0) * vehicleParameters.transmissionRatio / (vehicleParameters.wheelRadius / 100.0)
 
-		log.debug(s"engine force: $engineForce, drag force: $dragForce, rolling friction force: $rollingFrictionForce")
-		val effectiveForce = engineForce - rollingFrictionForce - dragForce
+		val brakeForce = signals.signalValue("beta*", 0.0) * vehicleParameters.maximumBrakingForce
+
+		val effectiveForce = engineForce - rollingFrictionForce - dragForce - brakeForce
+		log.debug(s"forces: (eff/engine/drag/rolling/brake): $effectiveForce/$engineForce/$dragForce/$rollingFrictionForce/$brakeForce")
 
 		// TODO add a factor for rotational inertia
 		val acceleration = effectiveForce / vehicleParameters.mass

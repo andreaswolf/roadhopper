@@ -25,5 +25,6 @@ class VehicleParameters(val mass: Int,
                         val wheelRadius: Int, val wheelDragCoefficient: Double,
                         val maximumEnginePower: Int, val maximumEngineTorque: Int, val maximumEngineRpm: Int,
                         val engineEfficiencyFactor: Int,
-                        val transmissionRatio: Double) {
+                        val transmissionRatio: Double,
+                        val maximumBrakingForce: Int) {
 }

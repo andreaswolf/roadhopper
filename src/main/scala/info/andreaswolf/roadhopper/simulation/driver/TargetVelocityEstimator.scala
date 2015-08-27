@@ -28,11 +28,7 @@ class TargetVelocityEstimator(bus: ActorRef, journey: ActorRef) extends Process(
 		}
 
 		val currentVelocity = signals.signalValue("v", 0.0)
-		val lookAheadDistance: Int = Math.max(
-		// we’re assuming 4 [m/s^2] comfortable braking deceleration for now; TODO use a driver parameter here
-			(currentVelocity * currentVelocity / (2 * 4.0)).round.toInt,
-			40 // assume at least 40m lookahead distance
-		)
+		val lookAheadDistance: Int = (currentVelocity * currentVelocity / (2 * 4.0)).round.toInt
 		journey ? GetRoadAhead(lookAheadDistance) flatMap {
 			case ReturnRoadAhead(roadSegments) => Future {
 				val minimumSpeedLimit = roadSegments.map(_.speedLimit).filter(_ > 0).min
