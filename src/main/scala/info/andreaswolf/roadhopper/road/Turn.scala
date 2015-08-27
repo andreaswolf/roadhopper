@@ -24,12 +24,19 @@ object Turn {
 			case x => from.speedLimit
 		}
 
+		if (from.length - beforeTurnLength < 1.0) {
+			// if we would get a very short segment (< 1m) and the pre-turn segment, we skip the first segment
+			return Seq(new PreTurnSegment(from.start, from.end, speedLimit / 3.6))
+		}
+
 		// get the segment until 5 meters before the turn point
 		val beforeTurn = RoadSegment.fromExisting(from, beforeTurnLength)
 		// get the segment right before the turn point
 		val turnBase = new PreTurnSegment(beforeTurn.end, from.end, speedLimit / 3.6)
 
-		Seq(beforeTurn, turnBase)
+		// filter out a zero-length segment that might occur if the from-segment was shorter than the slowdown distance
+		// of 5 meters
+		Seq(beforeTurn, turnBase).filter(_.length > 0.0)
 	}
 }
 
