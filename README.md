@@ -30,7 +30,7 @@ Currently, there are no scripts to run the software, so you need to configure it
 with the following parameters:
 
   * Main class: info.andreaswolf.roadhopper.server.RoadHopperServer
-  * VM options: -Djetty.port=8989 -Dconfig.file=./roadhopper/application.conf
+  * VM options: -Djetty.port=8989 -Dconfig.file=./roadhopper/application.conf -Dorientdb.config.file=./roadhopper/database/orientdb-server-config.xml -DORIENTDB_HOME=./roadhopper/
   * Program arguments: jetty.resourcebase=./web/src/main/webapp/ config=./config.properties graph.location=&lt;Path to your data directory&gt; osmreader.osm=&lt;Path to your OSM file&gt; graph.elevation.provider=srtm
   * Working directory: _Path to GraphHopper_
 
