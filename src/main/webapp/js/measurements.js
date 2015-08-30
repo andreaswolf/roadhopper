@@ -74,16 +74,15 @@
 		$group.show();
 	};
 
-	var loadMeasurement = function (name) {
+	var loadMeasurement = function (name, $listItem) {
 		console.info("Starting to load data set" + name);
-		$('#measurement-file-indicator').text('Loading file ' + name + '…');
 
-		$group.hide();
+		$listItem.css('font-style', 'italic');
+
 		$.ajax({
 			timeout: 30000,
 			url: host + '/roadhopper/measurements?name=' + name,
 			success: function (json) {
-				$('#measurement-file-indicator').text('Loaded file ' + name);
 				var measurements = json["measurements"];
 				drawMeasurement(measurements);
 			},
@@ -91,7 +90,8 @@
 				console.error("Error while fetching measurements", err);
 			},
 			complete: function() {
-				$group.hide();
+				$listItem.siblings('li').css('font-weight', 'normal').css('font-style', 'regular');
+				$listItem.css('font-weight', 'bold').css('font-style', 'regular');
 			},
 			type: "GET",
 			dataType: "json",
@@ -107,7 +107,7 @@
 		roadHopper.addModule("measurements", "Measurements", $moduleContents);
 		$groupList.on('click', 'li', showGroup);
 		$group.on('click', 'li', function() {
-			loadMeasurement($(this).data('measurement'));
+			loadMeasurement($(this).data('measurement'), $(this));
 		});
 
 		$.ajax({
