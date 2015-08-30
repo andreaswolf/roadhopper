@@ -44,6 +44,16 @@ head to http://localhost:8989 and select two points. Then, a simulation will run
 I’m working on that ;-). Afterwards, you see a t–v diagram at the bottom right.
 
 
+Measurement Data import
+-----------------------
+
+  * Main class: info.andreaswolf.roadhopper.measurements.Importer
+  * VM options, program arguments, working directory: _See above_
+
+The CSV files must be placed in the folder `measurements/` in the configured working directory. To adjust the folder name,
+set the property `measurements.path` in your program options.
+
+
 Troubleshooting
 ---------------
 
