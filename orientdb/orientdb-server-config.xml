@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <orient-server>
 	<properties>
-		<entry value="./roadhopper/database/" name="server.database.path"/>
-		<entry value="./roadhopper/database/site" name="orientdb.www.path"/>
+		<entry value="./roadhopper/orientdb/" name="server.database.path"/>
+		<entry value="./roadhopper/orientdb/site" name="orientdb.www.path"/>
 	</properties>
 	<users>
-		<user name="root" resources="*" password="095F17F6488FF5416ED24E"/>
+		<user resources="*" name="root" password="root"/>
+		<user resources="connect,server.listDatabases,server.dblist" password="guest" name="guest"/>
 	</users>
 	<network>
 		<protocols>
