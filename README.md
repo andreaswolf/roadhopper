@@ -36,6 +36,9 @@ with the following parameters:
 
 Keep in mind to replace the paths in &lt;&gt; with the proper locations.
 
+What is also necessary is replacing the dependencies to the com.graphhopper.* modules by references to the modules inside
+the IDE workspace.
+
 When starting the software, GraphHopper will process the OSM file and create its internal data structure. Afterwards,
 head to http://localhost:8989 and select two points. Then, a simulation will run – currently, a very rough estimate.
 I’m working on that ;-). Afterwards, you see a t–v diagram at the bottom right.
