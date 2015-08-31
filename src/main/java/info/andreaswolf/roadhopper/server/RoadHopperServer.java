@@ -64,11 +64,9 @@ public class RoadHopperServer
 						"index.html"
 				});
 		// setup multiple resources, see <https://stackoverflow.com/a/2450243/3987705>
-		resHandler.setBaseResource(new ResourceCollection(new String[]{
-				// make sure our resources take precedence
-				"./roadhopper/src/main/webapp/",
-				args.get("jetty.resourcebase", "./src/main/webapp")
-		}));
+		resHandler.setBaseResource(new ResourceCollection(
+				args.get("jetty.resourcebase", "./src/main/webapp").split(":")
+		));
 
 		server = new Server();
 		// getSessionHandler and getSecurityHandler should always return null
