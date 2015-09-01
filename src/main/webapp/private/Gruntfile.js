@@ -7,7 +7,8 @@
 
 module.exports = function (grunt) {
 
-	var app = '../public';
+	var app = '../public',
+		componentsDir = app + '/components';
 
 	grunt.loadNpmTasks('grunt-contrib-compass');
 	grunt.loadNpmTasks('grunt-contrib-watch');
@@ -27,7 +28,8 @@ module.exports = function (grunt) {
 				//javascriptsDir: app + /scripts',
 				//fontsDir: app + /styles/fonts',
 				//importPath: app + /components',
-				relativeAssets: true
+				relativeAssets: true,
+				importPath: [componentsDir]
 			},
 			dist: {},
 			server: {
