@@ -12,6 +12,7 @@ module.exports = function (grunt) {
 
 	grunt.loadNpmTasks('grunt-contrib-compass');
 	grunt.loadNpmTasks('grunt-contrib-watch');
+	grunt.loadNpmTasks('grunt-bower-requirejs');
 
 	grunt.initConfig({
 		watch: {
@@ -38,5 +39,16 @@ module.exports = function (grunt) {
 				}
 			}
 		},
+		bowerRequirejs: {
+			target: {
+				rjsConfig: app + '/js/config.js',
+				'exclude-dev': true
+			}
+		}
 	});
+
+	grunt.registerTask('build', [
+		'compass:dist',
+		'bowerRequirejs'
+	]);
 };
