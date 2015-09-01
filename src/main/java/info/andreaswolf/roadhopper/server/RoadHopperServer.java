@@ -65,7 +65,7 @@ public class RoadHopperServer
 				});
 		// setup multiple resources, see <https://stackoverflow.com/a/2450243/3987705>
 		resHandler.setBaseResource(new ResourceCollection(
-				args.get("jetty.resourcebase", "./src/main/webapp").split(":")
+				args.get("jetty.resourcebase", "./src/main/webapp/public/").split(":")
 		));
 
 		server = new Server();

@@ -1,0 +1,27 @@
+{
+  "name": "RoadHopper",
+  "version": "0.1.0-dev",
+  "homepage": "https://github.com/andreaswolf/roadhopper",
+  "authors": [
+    "Andreas Wolf <dev@a-w.io>"
+  ],
+  "description": "A map-based simulation software to generate driving cycles.",
+  "moduleType": [
+    "amd"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "foundation-apps": "~1.1.0",
+    "jquery": "~2.1.4",
+    "leaflet": "~0.7.3",
+    "leaflet.contextmenu": "Leaflet.contextmenu#*",
+    "requirejs": "~2.1.20"
+  }
+}
