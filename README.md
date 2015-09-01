@@ -44,6 +44,17 @@ head to http://localhost:8989 and select two points. Then, a simulation will run
 I’m working on that ;-). Afterwards, you see a t–v diagram at the bottom right.
 
 
+Building RoadHopper
+-------------------
+
+RoadHopper comes with a Maven configuration for building it into a standalone package that can be run with just Java
+installed.
+
+To build the distribution, run
+
+   mvn dependency:copy-dependencies install jar:jar assembly:single
+
+
 Troubleshooting
 ---------------
 

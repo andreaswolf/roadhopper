@@ -1,0 +1,45 @@
+<!--
+  ~ Copyright (c) 2015 Andreas Wolf
+  ~
+  ~ See te LICENSE file in the project root for further copyright information.
+  -->
+
+<assembly xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.0 http://maven.apache.org/xsd/assembly-1.1.0.xsd">
+	<id>bin</id>
+	<formats>
+		<format>zip</format>
+	</formats>
+	<includeBaseDirectory>false</includeBaseDirectory>
+	<fileSets>
+		<fileSet>
+			<directory>${project.basedir}/src/main/</directory>
+			<outputDirectory/>
+			<includes>
+				<include>webapp/**</include>
+			</includes>
+		</fileSet>
+		<fileSet>
+			<directory>${project.basedir}</directory>
+			<outputDirectory/>
+			<includes>
+				<include>NOTICE*</include>
+				<include>LICENSE*</include>
+				<include>CONTRIBUTORS*</include>
+				<include>config-example.properties</include>
+				<include>roadhopper.sh</include>
+				<include>orientdb/orientdb-server-config.xml</include>
+				<include>application.conf</include>
+			</includes>
+		</fileSet>
+		<fileSet>
+			<directory>${project.build.directory}</directory>
+			<outputDirectory/>
+			<includes>
+				<include>lib/**</include>
+				<include>*-standalone.jar</include>
+			</includes>
+		</fileSet>
+	</fileSets>
+</assembly>

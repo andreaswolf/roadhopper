@@ -7,6 +7,7 @@
 	<artifactId>roadhopper</artifactId>
 	<name>RoadHopper</name>
 	<version>0.1-SNAPSHOT</version>
+	<packaging>jar</packaging>
 
 
 	<properties>
@@ -72,6 +73,62 @@
 					<source>7</source>
 					<target>7</target>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.6</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<addClasspath>true</addClasspath>
+							<classpathPrefix>lib/</classpathPrefix>
+							<mainClass>info.andreaswolf.roadhopper.server.RoadHopperServer</mainClass>
+						</manifest>
+					</archive>
+					<classifier>standalone</classifier>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<configuration>
+					<!-- see https://stackoverflow.com/a/3562259/3987705 -->
+					<outputDirectory>
+						${project.build.directory}/lib
+					</outputDirectory>
+					<!-- make sure we can still have our own version of the GraphHopper dependencies -->
+					<overWriteSnapshots>false</overWriteSnapshots>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<!-- heavily inspired by graphopper/web/pom.xml -->
+				<configuration>
+					<archive>
+						<manifest>
+							<mainClass>info.andreaswolf.roadhopper.server.RoadHopperServer</mainClass>
+						</manifest>
+					</archive>
+					<descriptors>
+						<descriptor>src/main/assembly/jar.xml</descriptor>
+						<!-- this is defined to be executed afterwards -->
+						<descriptor>src/main/assembly/zip.xml</descriptor>
+					</descriptors>
+				</configuration>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<!-- bind to verify and not package to pass integration tests before creating assemblies -->
+						<phase>integration-test</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 
 		</plugins>
