@@ -1,23 +1,36 @@
 <html>
 <head>
-	<link type="text/css" media="screen" rel="stylesheet" href="css/roadhopper.css"></link>
+	<link type="text/css" media="screen" rel="stylesheet" href="css/roadhopper.css"/>
+	<link type="text/css" media="screen" rel="stylesheet" href="components/leaflet/dist/leaflet.css"/>
+
+	<script data-main="js/main" src="components/requirejs/require.js"></script>
+	<script src="js/config.js"></script>
 </head>
 
-<body>
+<body ng-controller="routeController">
 
 <div class="grid-frame">
-	<div id="menu-container" class="shrink grid-block">
-		<div id="menu">
-			<section class="module" data-module="simulation">
-				<h2 class="header">Simulation</h2>
-				<div class="content">
-				</div>
-
-			</section>
+	<div class="grid-block vertical">
+		<div id="header" class="grid-block shrink">
+			<span class="title">RoadHopper</span>
 		</div>
-	</div>
-	<div id="content" class="grid-block">
-		<div id="map" class="grid-block"></div>
+		<div class="grid-block">
+			<div id="menu-container" class="shrink grid-block">
+				<div id="menu">
+					<section class="module" data-module="simulation">
+						<h2 class="header">Simulation</h2>
+
+						<div class="content">
+						</div>
+
+					</section>
+				</div>
+			</div>
+			<div id="content" class="grid-block">
+				<div id="map" class="grid-block">
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
 
