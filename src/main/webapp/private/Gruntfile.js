@@ -11,13 +11,13 @@ module.exports = function (grunt) {
 		componentsDir = app + '/components';
 
 	grunt.loadNpmTasks('grunt-contrib-compass');
-	grunt.loadNpmTasks('grunt-contrib-watch');
+	grunt.loadNpmTasks('grunt-regarde');
 	grunt.loadNpmTasks('grunt-bower-requirejs');
 
 	grunt.initConfig({
 		watch: {
 			compass: {
-				files: ['./styles/{,/*}/*.scss'],
+				files: ['./styles/*.scss'],
 				tasks: ['compass']
 			}
 		},
@@ -46,6 +46,8 @@ module.exports = function (grunt) {
 			}
 		}
 	});
+
+	grunt.renameTask('regarde', 'watch');
 
 	grunt.registerTask('build', [
 		'compass:dist',
