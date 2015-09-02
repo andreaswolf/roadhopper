@@ -3,8 +3,7 @@
  *
  * See te LICENSE file in the project root for further copyright information.
  */
-define(['app/base', 'underscore', 'leaflet', 'URIjs', 'app/model/route'],
-	function (app, _, L, URI, Route) {
+define(['app/base', 'underscore', 'leaflet', 'URIjs', 'app/model/route'], function (app, _, L, URI, Route) {
 
 	var $http, host;
 
@@ -25,7 +24,7 @@ define(['app/base', 'underscore', 'leaflet', 'URIjs', 'app/model/route'],
 		this.route = new Route($rootScope);
 		this.$rootScope = $rootScope;
 		var instance = this;
-		this.$rootScope.$on('routePointsUpdated', function() {
+		this.$rootScope.$on('routePointsUpdated', function () {
 			instance.checkCoordinatesAndDoRequest();
 		});
 	};
@@ -37,6 +36,15 @@ define(['app/base', 'underscore', 'leaflet', 'URIjs', 'app/model/route'],
 		addIntermediateCoord: function (pos) {
 			this.route.addIntermediate(pos);
 			this.checkCoordinatesAndDoRequest();
+		},
+		removeByIndex: function (index) {
+			if (index == 0) {
+				this.setStartCoord(null);
+			} else if (index == this.route.points.length - 1) {
+				this.setEndCoord(null);
+			} else {
+				this.route.removeIntermediate(index - 1);
+			}
 		},
 		setEndCoord: function (pos) {
 			this.route.setEnd(pos);

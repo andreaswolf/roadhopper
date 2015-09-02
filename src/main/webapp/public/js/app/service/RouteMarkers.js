@@ -13,7 +13,7 @@ define(['app/base', 'underscore', 'leaflet', 'app/service/routeService', 'app/se
 		this.markers = {};
 		this.routingLayer = RoutingLayer;
 		this.routeService = routeService;
-		$rootScope.$on('RoutingLayer::redraw', function() {
+		$rootScope.$on('RoutingLayer::redraw', function () {
 			instance.update(instance.routeService.route.points);
 		})
 	};
@@ -29,6 +29,7 @@ define(['app/base', 'underscore', 'leaflet', 'app/service/routeService', 'app/se
 			}
 		},
 		_updateMarker: function (index, role, coord) {
+			var instance = this;
 			var marker = L.marker([coord.lat, coord.lng], {
 				icon: ((role === 'start') ? iconFrom : ((role === 'end') ? iconTo : iconInt)),
 				draggable: true,
@@ -48,7 +49,9 @@ define(['app/base', 'underscore', 'leaflet', 'app/service/routeService', 'app/se
 				}, {
 					text: 'Delete from Route',
 					// TODO reimplement:
-					// callback: deleteCoord,
+					callback: function () {
+						instance.routeService.removeByIndex(index);
+					},
 					index: 3,
 					state: 2,
 					disabled: false//(toFrom !== -1 && ghRequest.route.size() === 2) ? true : false // prevent to and from
@@ -61,7 +64,7 @@ define(['app/base', 'underscore', 'leaflet', 'app/service/routeService', 'app/se
 			}).addTo(this.routingLayer.layer);
 
 			var instance = this;
-			marker.on('dragend', function(e) {
+			marker.on('dragend', function (e) {
 				console.debug("dragged point to ", e);
 				var coordinates = e.target.getLatLng();
 				instance.routeService.route.movePoint(index, coordinates);

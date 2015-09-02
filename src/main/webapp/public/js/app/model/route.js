@@ -36,6 +36,9 @@ define(['underscore'], function (_) {
 			this.intermediate.push(pos);
 			this._updatePoints();
 		},
+		removeIntermediate: function(index) {
+			this.intermediate.splice(index, 1);
+		},
 		isRoutable: function() {
 			return this.start && this.end;
 		},
