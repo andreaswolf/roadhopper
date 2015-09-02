@@ -54,6 +54,14 @@ define(['underscore'], function (_) {
 			}
 			this._updatePoints();
 		},
+		getPointCoordinates: function() {
+			var coordinates = [];
+			for (var i = 0; i < this.points.length; ++i) {
+				var point = this.points[i];
+				coordinates.push([point.latlng.lat, point.latlng.lng]);
+			}
+			return coordinates;
+		},
 		_updatePoints: function () {
 			this.points = [this.start].concat(this.intermediate, [this.end]);
 			this.$rootScope.$broadcast('routePointsUpdated');
