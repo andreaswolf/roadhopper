@@ -7845,14 +7845,41 @@ blockquote p {
 }
 
 /* line 16, ../../private/styles/roadhopper.scss */
+#header {
+  padding: 0.5em;
+  background: #8e8e8e;
+}
+/* line 20, ../../private/styles/roadhopper.scss */
+#header .title {
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+/* line 27, ../../private/styles/roadhopper.scss */
+.module .header {
+  background: #677c93;
+  color: #eee;
+  padding: 0.25em;
+  margin: 0;
+  font-weight: bold;
+  font-size: 1em;
+  line-height: 1.4em;
+}
+/* line 37, ../../private/styles/roadhopper.scss */
+.module .content {
+  padding: 0.6em 0.4em;
+  background: #fcfcfc;
+}
+
+/* line 43, ../../private/styles/roadhopper.scss */
 .route-points {
   list-style-image: url(../img/marker-small-blue.png);
 }
-/* line 19, ../../private/styles/roadhopper.scss */
+/* line 46, ../../private/styles/roadhopper.scss */
 .route-points .start {
   list-style-image: url(../img/marker-small-green.png);
 }
-/* line 22, ../../private/styles/roadhopper.scss */
+/* line 49, ../../private/styles/roadhopper.scss */
 .route-points .end {
   list-style-image: url(../img/marker-small-red.png);
 }
