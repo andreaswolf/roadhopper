@@ -27,7 +27,11 @@ require.config({
 		angular: '../components/angular/angular',
 		'angular-route': '../components/angular-route/angular-route',
 		'leaflet-src': '../components/leaflet/dist/leaflet-src',
-		underscore: '../components/underscore/underscore'
+		underscore: '../components/underscore/underscore',
+		URIjs: '../components/URIjs/src/URI',
+		punycode: '../components/URIjs/src/punycode',
+		IPv6: '../components/URIjs/src/IPv6',
+		SecondLevelDomains: '../components/URIjs/src/SecondLevelDomains'
 	},
 	packages: [
 
