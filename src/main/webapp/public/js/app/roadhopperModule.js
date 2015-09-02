@@ -3,10 +3,10 @@
  *
  * See te LICENSE file in the project root for further copyright information.
  */
-define(['angular', 'app/config', 'app/routeController'],
-	function (angular, config, routeController) {
-		var app = angular.module('roadhopperApp', ['ngRoute']);//, [, 'ngResource', 'ngGrid']);
+define(['app/base', 'app/config', 'app/routeController', 'app/controller/routePointList'],
+	function (app, config, routeController, routePointList) {
 		app.config(config);
 		app.controller('routeController', routeController);
+		app.controller('routePointList', routePointList);
 	}
 );
