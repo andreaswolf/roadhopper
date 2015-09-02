@@ -5,5 +5,4 @@
  */
 require(['jquery', 'angular', 'leaflet', 'app/roadhopperModule'], function ($, angular, L) {
 	angular.bootstrap(document, ['roadhopperApp']);
-
 });
