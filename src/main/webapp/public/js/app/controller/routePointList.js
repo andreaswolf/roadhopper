@@ -5,6 +5,13 @@
  */
 define(['jquery', 'leaflet', 'app/service/routeService', 'leaflet.contextmenu'], function ($, L) {
 
+	/**
+	 * The controller for displaying the list of route points in the left bar.
+	 *
+	 * @param $scope
+	 * @param $rootScope
+	 * @param routeService
+	 */
 	var controller = function ($scope, $rootScope, routeService) {
 
 		console.debug("creating route point list controller");

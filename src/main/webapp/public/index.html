@@ -21,7 +21,7 @@
 						<h2 class="header">Simulation</h2>
 
 						<div class="content">
-							<ul ng-controller="routePointList">
+							<ul class="route-points" ng-controller="routePointList">
 							<div ng-model="Route" ng-repeat="point in route.points">
 								<li ng-class="{'start': $first, 'end': $last}">{{ point.latlng.lat | number:5 }},{{ point.latlng.lng | number:5 }}</li>
 							</div>

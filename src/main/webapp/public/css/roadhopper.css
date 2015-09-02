@@ -7834,12 +7834,25 @@ blockquote p {
   float: none;
 }
 
-/* line 9, ../../private/styles/roadhopper.scss */
+/* line 8, ../../private/styles/roadhopper.scss */
 #menu {
   width: 300px;
 }
 
-/* line 13, ../../private/styles/roadhopper.scss */
+/* line 12, ../../private/styles/roadhopper.scss */
 #menu-container {
   background: #283039;
+}
+
+/* line 16, ../../private/styles/roadhopper.scss */
+.route-points {
+  list-style-image: url(../img/marker-small-blue.png);
+}
+/* line 19, ../../private/styles/roadhopper.scss */
+.route-points .start {
+  list-style-image: url(../img/marker-small-green.png);
+}
+/* line 22, ../../private/styles/roadhopper.scss */
+.route-points .end {
+  list-style-image: url(../img/marker-small-red.png);
 }

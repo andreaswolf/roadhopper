@@ -4,10 +4,11 @@
  * See te LICENSE file in the project root for further copyright information.
  */
 
-define(['app/base', 'app/service/map', 'app/service/routeService'], function (app) {
+define(['app/base', 'jquery', 'leaflet.contextmenu', 'app/service/map', 'app/service/routeService'], function (app, $) {
 
-	var MapContextMenu = function(mapService, routeService) {
+	var MapContextMenu = function($rootScope, mapService, routeService) {
 		var map = mapService.map;
+
 		var _startItem = {
 			text: 'Set as start',
 			callback: $.proxy(routeService.setStartCoord, routeService),
@@ -30,10 +31,12 @@ define(['app/base', 'app/service/map', 'app/service/routeService'], function (ap
 		menuIntermediate = map.contextmenu.insertItem(_intItem, _intItem.index);
 		menuEnd = map.contextmenu.insertItem(_endItem, _endItem.index);
 
-		console.debug("Constructing map context menu")
+		console.debug("Constructing map context menu");
+
+		$rootScope.$on('routePointsUpdated', function () {
+			map.contextmenu.setDisabled(menuIntermediate, !(routeService.route.isRoutable()));
+		});
 	};
 
-	return app.factory('mapContextMenu', ['mapService', 'routeService', function (mapService, routeService) {
-		return new MapContextMenu(mapService, routeService);
-	}]);
+	return app.service('mapContextMenu', ['$rootScope', 'mapService', 'routeService', MapContextMenu]);
 });

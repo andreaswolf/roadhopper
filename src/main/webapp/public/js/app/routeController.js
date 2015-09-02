@@ -3,12 +3,23 @@
  *
  * See te LICENSE file in the project root for further copyright information.
  */
-define(['jquery', 'leaflet', 'app/service/routeService', 'app/service/map', 'app/service/mapContextMenu', 'leaflet.contextmenu'], function ($, L) {
-	var controller = function () {
-		// currently nothing to do here, the controller just coordinates construction of the model
-	};
+define([
+		'app/service/routeService',
+		'app/service/map',
+		'app/service/mapContextMenu',
+		'app/service/RoutingLayer',
+		'app/service/RouteMarkers'
+	],
+	function () {
 
-	controller.$inject = ['mapService', 'routeService', 'mapContextMenu'];
+		var controller = function ($rootScope, mapService, routeService, mapContextMenu, RoutingLayer, RouteMarkers) {
+			$rootScope.$on('routePointsUpdated', function () {
+				if (routeService.route.isRoutable) {
+				}
+			})
+		};
 
-	return controller;
-});
+		controller.$inject = ['$rootScope', 'mapService', 'routeService', 'mapContextMenu', 'RoutingLayer', 'RouteMarkers'];
+
+		return controller;
+	});

@@ -36,6 +36,24 @@ define(['underscore'], function (_) {
 			this.intermediate.push(pos);
 			this._updatePoints();
 		},
+		isRoutable: function() {
+			return this.start && this.end;
+		},
+		/**
+		 *
+		 * @param index
+		 * @param coordinates LatLng
+		 */
+		movePoint: function(index, coordinates) {
+			if (index == 0) {
+				this.start.latlng = coordinates;
+			} else if (index == this.intermediate.length + 1) {
+				this.end.latlng = coordinates;
+			} else {
+				this.intermediate[index - 1].latlng = coordinates;
+			}
+			this._updatePoints();
+		},
 		_updatePoints: function () {
 			this.points = [this.start].concat(this.intermediate, [this.end]);
 			this.$rootScope.$broadcast('routePointsUpdated');

@@ -3,13 +3,23 @@
  *
  * See te LICENSE file in the project root for further copyright information.
  */
-
 @import "foundation-apps/scss/foundation";
 
 #menu {
-	width:300px;
+	width: 300px;
 }
 
 #menu-container {
 	background: #283039;
+}
+
+.route-points {
+	list-style-image: url(../img/marker-small-blue.png);
+
+	.start {
+		list-style-image: url(../img/marker-small-green.png);
+	}
+	.end {
+		list-style-image: url(../img/marker-small-red.png);
+	}
 }

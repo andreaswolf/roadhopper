@@ -3,7 +3,7 @@
  *
  * See te LICENSE file in the project root for further copyright information.
  */
-define(['app/base'], function (app) {
+define(['app/base', 'leaflet'], function (app, L) {
 	var osmAttr = '&copy; <a href="http://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors';
 
 	var layers = {
@@ -37,7 +37,7 @@ define(['app/base'], function (app) {
 	var MapService = function () {
 		console.debug("creating map service");
 
-		// default
+		var instance = this;
 		this.map = L.map('map', {
 			layers: [defaultLayer],
 			contextmenu: true,
@@ -56,7 +56,7 @@ define(['app/base'], function (app) {
 			}, {
 				text: 'Center map here',
 				callback: function (e) {
-					map.panTo(e.latlng);
+					instance.map.panTo(e.latlng);
 				},
 				index: 5,
 				state: [1, 2, 3]
