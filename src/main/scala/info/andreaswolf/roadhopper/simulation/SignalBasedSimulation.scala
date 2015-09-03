@@ -57,7 +57,7 @@ class SignalBasedSimulation(val route: Route, override val result: SimulationRes
 		maximumEnginePower = 84000, maximumEngineTorque = 200, maximumEngineRpm = 12000,
 		engineEfficiencyFactor = 95,
 		transmissionRatio = 10.0,
-		maximumBrakingForce = 2000
+		maximumBrakingForce = 200
 	)
 
 	val vehicle = new VehicleFactory(actorSystem, timer, signalBus).createVehicle(vehicleParameters)
