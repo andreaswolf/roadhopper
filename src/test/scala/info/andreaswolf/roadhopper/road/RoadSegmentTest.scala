@@ -4,7 +4,6 @@ import com.graphhopper.util.shapes.GHPoint3D
 import junit.framework.Assert
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks._
-import org.yaml.snakeyaml.constructor.Tuple
 
 class RoadSegmentTest extends FunSuite {
 
