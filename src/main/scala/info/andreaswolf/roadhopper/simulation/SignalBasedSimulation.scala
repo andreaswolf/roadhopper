@@ -70,7 +70,7 @@ class SignalBasedSimulation(val route: Route, override val result: SimulationRes
 	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 10, -500.0, 0.0, signalBus)))
 	val brake = actorSystem.actorOf(Props(new Brake("beta", "beta*", 0, signalBus)))
 
-	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, result)))
+	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, result, 50)))
 
 	def start() = {
 		Future.sequence(List(

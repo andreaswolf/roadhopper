@@ -13,12 +13,12 @@ import scala.collection.mutable
 import scala.concurrent.Future
 
 
-class SignalLogger(signalBus: ActorRef, val result: SimulationResult) extends Process(signalBus) {
+class SignalLogger(signalBus: ActorRef, val result: SimulationResult, val interval: Int = 250) extends Process(signalBus) {
 
 	import context.dispatcher
 
 	override def invoke(signals: SignalState): Future[Any] = Future {
-		if (time % 250 == 0) {
+		if (time % interval == 0) {
 			result.setSignals(time, signals)
 			println(s"Logged ${signals.values.size} signal values at $time")
 		}
