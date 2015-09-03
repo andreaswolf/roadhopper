@@ -12,7 +12,7 @@ import com.google.inject.Inject
 import info.andreaswolf.roadhopper.server.BaseServlet
 import info.andreaswolf.roadhopper.simulation.SimulationRepository
 import info.andreaswolf.roadhopper.simulation.signals.SignalState
-import org.json.{JSONObject, JSONStringer}
+import org.json.JSONObject
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions
@@ -46,15 +46,20 @@ class SimulationExportServlet extends BaseServlet {
 			case x => x.toList
 		}
 
-		val serializer = new JsonSignalValueSerializer(signals)
-		val output = new JSONStringer
-		output.`object`()
-		simulation.result.signals.toSeq.sortBy(_._1).foreach {case (time, signalValues) =>
-			output.key(time.toString).value(serializer.serializeState(signalValues))
+		val serializer = new CsvSignalSerializer(signals)
+		val output = new StringBuilder
+		output.append("time," + signals.mkString(",") + "\n")
+		simulation.result.signals.toSeq.sortBy(_._1).foreach { case (time, signalValues) =>
+			output.append(time.toString + "," + serializer.serializeState(signalValues) + "\n")
 		}
-		output.endObject()
 
-		resp.getWriter.append(output.toString)
+		resp.getWriter.append(output.toString())
+	}
+
+	implicit def mapToJson(map: scala.collection.Map[String, Any]): JSONObject = {
+		val target = new JSONObject()
+		map.foreach { case (k: String, v: Any) => target.put(k, v) }
+		target
 	}
 
 	class JsonSignalValueSerializer(val signals: List[String]) {
@@ -62,6 +67,15 @@ class SimulationExportServlet extends BaseServlet {
 			val interestingValues = signalState.values.filterKeys(name => signals.contains(name))
 
 			new JSONObject(JavaConversions.mapAsJavaMap(interestingValues))
+		}
+	}
+
+	class CsvSignalSerializer(val signals: List[String]) {
+		def serializeState(signalState: SignalState): String = {
+			val interestingValues = signalState.values.filterKeys(name => signals.contains(name)).toSeq
+				.sortWith((l, r) => signals.indexOf(l._1) < signals.indexOf(r._1))
+
+			interestingValues.map { case (k: String, v: Any) => v }.mkString(",")
 		}
 	}
 
