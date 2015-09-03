@@ -60,16 +60,16 @@ class RouteFactory(val hopper: RoadHopper) {
 		val segments = new ListBuffer[RoadSegment]
 		var lastPoint: Option[GHPoint3D] = None
 
-		val signEncoder: RoadSignEncoder = new RoadSignEncoder(hopper.getGraph)
+		val signEncoder: RoadSignEncoder = new RoadSignEncoder(hopper.getGraphHopperStorage)
 		// TODO make the encoder name configurable
-		val flagEncoder = hopper.getGraph.getEncodingManager.getEncoder("car")
-		val nodeAccess: NodeAccess = hopper.getGraph.getNodeAccess
+		val flagEncoder = hopper.getGraphHopperStorage.getEncodingManager.getEncoder("car")
+		val nodeAccess: NodeAccess = hopper.getGraphHopperStorage.getNodeAccess
 
 		for (i <- paths.indices) {
 			// NOTE the first and last edges might be incomplete, as we enter the road through it! -> conclusion: do not use
 			// the edges for any calculations, but instead rely on the points
 			for (edge <- paths.get(i).calcEdges()) {
-				val flags = hopper.getQueryGraph.getEdgeProps(edge.getEdge, edge.getAdjNode).getFlags
+				val flags = hopper.getQueryGraph.getEdgeIteratorState(edge.getEdge, edge.getAdjNode).getFlags
 				val maximumSpeed = flagEncoder.getSpeed(flags) / 3.6 // speed is stored in km/h, but we need m/s
 				log.debug(f"Found edge properties for edge ${edge.getEdge} with max speed $maximumSpeed%.2f m/s")
 

@@ -161,12 +161,12 @@
 		<dependency>
 			<groupId>com.graphhopper</groupId>
 			<artifactId>graphhopper</artifactId>
-			<version>0.5-roadhopper-SNAPSHOT</version>
+			<version>0.6-roadhopper-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>com.graphhopper</groupId>
 			<artifactId>graphhopper-web</artifactId>
-			<version>0.5-roadhopper-SNAPSHOT</version>
+			<version>0.6-roadhopper-SNAPSHOT</version>
 		</dependency>
 		<!-- more recent and nicer but bigger
 		<dependency>

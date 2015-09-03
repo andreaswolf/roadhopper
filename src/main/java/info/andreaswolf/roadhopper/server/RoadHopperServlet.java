@@ -216,9 +216,9 @@ public class RoadHopperServlet extends GraphHopperServlet
 	{
 		public void enrich(final Map<String, Object> responseContents, info.andreaswolf.roadhopper.route.Route route)
 		{
-			final NodeAccess nodeAccess = hopper.getGraph().getNodeAccess();
+			final NodeAccess nodeAccess = hopper.getGraphHopperStorage().getNodeAccess();
 			final List<PointInfo> towerNodeInfo = new ArrayList<PointInfo>(10);
-			final RoadSignEncoder signEncoder = new RoadSignEncoder(hopper.getGraph());
+			final RoadSignEncoder signEncoder = new RoadSignEncoder(hopper.getGraphHopperStorage());
 
 			route.getTowerNodeIds().forEach(new TIntProcedure()
 			{

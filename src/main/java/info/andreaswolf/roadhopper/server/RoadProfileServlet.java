@@ -32,7 +32,7 @@ public class RoadProfileServlet extends GHBaseServlet
 		calculator.setAlgorithm("").setWeighting("fastest").setLocale("de");
 		List<Path> points = calculator.getPaths("car", infoPoints);
 
-		NodeAccess nodeAccess = hopper.getGraph().getNodeAccess();
+		NodeAccess nodeAccess = hopper.getGraphHopperStorage().getNodeAccess();
 
 		int node;
 		for (Path path : points)

@@ -5,6 +5,7 @@ import com.graphhopper.GHResponse;
 import com.graphhopper.GraphHopper;
 import com.graphhopper.routing.Path;
 import com.graphhopper.routing.QueryGraph;
+import com.graphhopper.storage.Graph;
 import info.andreaswolf.roadhopper.route.Route;
 
 import java.util.List;
@@ -27,9 +28,10 @@ public class RoadHopper extends GraphHopper
 	}
 
 	@Override
-	protected QueryGraph createQueryGraph(String vehicle)
+	protected QueryGraph createQueryGraph(Graph routingGraph)
 	{
-		queryGraph = super.createQueryGraph(vehicle);
+		// store the query graph for usage outside this class
+		queryGraph = super.createQueryGraph(routingGraph);
 
 		return queryGraph;
 	}
