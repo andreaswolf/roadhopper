@@ -4,11 +4,12 @@
  * See te LICENSE file in the project root for further copyright information.
  */
 
-package info.andreaswolf.roadhopper.server
+package info.andreaswolf.roadhopper.server.export
 
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import com.google.inject.Inject
+import info.andreaswolf.roadhopper.server.BaseServlet
 import info.andreaswolf.roadhopper.simulation.SimulationRepository
 import info.andreaswolf.roadhopper.simulation.signals.SignalState
 import org.json.{JSONObject, JSONStringer}
@@ -20,7 +21,7 @@ import scala.collection.JavaConversions
 /**
  * Fetches signal values for a given simulation and returns them to the client.
  */
-class SignalValuesServlet extends BaseServlet {
+class SimulationExportServlet extends BaseServlet {
 
 	val log = LoggerFactory.getLogger(this.getClass)
 
