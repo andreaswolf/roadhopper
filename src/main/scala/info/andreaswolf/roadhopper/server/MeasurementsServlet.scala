@@ -11,13 +11,11 @@ import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 import com.google.inject.Inject
 import com.graphhopper.util.CmdArgs
-import com.graphhopper.util.shapes.GHPoint3D
-import info.andreaswolf.roadhopper.road.{RoadBuilder, RouteFactory}
+import info.andreaswolf.roadhopper.measurements.{Measurement, DataPoint, MeasurementFile, MeasurementRepository}
+import info.andreaswolf.roadhopper.persistence.Database
 import org.json.{JSONArray, JSONObject, JSONStringer}
 import org.slf4j.LoggerFactory
 
-import scala.collection.immutable.TreeSet
-import scala.collection.mutable.ListBuffer
 import scala.collection.{JavaConversions, mutable}
 import scala.io.Source
 
@@ -29,79 +27,11 @@ class MeasurementsServlet extends HttpServlet {
 	@Inject
 	var args: CmdArgs = null
 
-	class MeasurementPoint(val date: Long, val position: GHPoint3D, val velocity: Double, val orientation: Double)
-		extends Ordered[MeasurementPoint] {
-		// Required as of Scala 2.11 for reasons unknown - the companion to Ordered
-		// should already be in implicit scope
-		//import scala.math.Ordered.orderingToOrdered
+	@Inject var database: Database = null
 
-		def compare(that: MeasurementPoint): Int = this.date compare that.date
-	}
+	@Inject var measurementRepository: MeasurementRepository = null
 
-	class MeasurementFile(val lines: Iterator[String], val headerLine: String = null) {
-		lines.next()
-
-		lazy val groups = {
-			val items = new ListBuffer[Set[MeasurementPoint]]()
-
-			val buffer = TreeSet.newBuilder[MeasurementPoint]
-			//
-			var timeStandingStill = 0
-
-			def endMeasurementGroup(): Unit = {
-				val newSet = buffer.result()
-				if (newSet.nonEmpty) {
-					items.append(buffer.result())
-				}
-				buffer.clear()
-				timeStandingStill = 0
-			}
-
-			for (line <- lines) {
-				// using ";0,000;" as an indicator that the speed is 0
-				if (line.indexOf(";0,000;") > -1) {
-					timeStandingStill += 1
-				} else {
-					// vehicle did not move for more than ten seconds => start new measurement
-					if (timeStandingStill > 10) {
-						endMeasurementGroup()
-					}
-				}
-
-				val Array(time, _latitude, _longitude, _velocity, _heading) = line.split(";").map(_.trim)
-				// NOTE only some of our files had a velocity in knots; therefore, we assume km/h for now.
-				val velocityKmh = _velocity.replace(",", ".").toDouble
-				val latitude = _latitude.replace(",", ".").toDouble
-				val longitude = _longitude.replace(",", ".").toDouble
-				val orientation = _heading.replace(",", ".").toDouble.toRadians
-
-				// only include one measurement per second
-				if (time.indexOf(",") == -1 || time.split(",").apply(1).equals("00")) {
-					// ignore slow movements for creating the road
-					if (velocityKmh > 1.0) {
-						handlePointForRoad(latitude, longitude, velocityKmh)
-					}
-
-					try {
-						val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60 + time.substring(4, 6).toLong) * 1000
-
-						buffer += new MeasurementPoint(date, new GHPoint3D(latitude, longitude, 0.0), velocityKmh, orientation)
-					} catch {
-						case ex: NumberFormatException =>
-							log.error(s"Could not parse time '$time': ${ex.getMessage}")
-					}
-				}
-			}
-			endMeasurementGroup()
-
-			items.toList
-		}
-	}
-
-
-	var roadBuilder: Option[RoadBuilder] = None
-
-	val measurements = new mutable.TreeSet[MeasurementPoint]()
+	val measurements = new mutable.TreeSet[DataPoint]()
 
 	val log = LoggerFactory.getLogger("MeasurementsServlet")
 
@@ -116,109 +46,40 @@ class MeasurementsServlet extends HttpServlet {
 	}
 
 	override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
-		val filename = req.getParameter("name")
-		val basePath = args.get("measurements.path", "./measurements/")
+		val group = req.getParameter("name")
 
-		if (filename == null) {
-			val folder = new File(basePath)
-			val jsonFiles = new JSONStringer
-			jsonFiles.`object`().key("files").array()
+		val json = new JSONStringer
+		if (group == null) {
+			val groups = measurementRepository.findAllGroups
+			json.`object`().key("files").`object`()
 
-			folder.listFiles().sorted.foreach({ f => jsonFiles.value(f.getName) })
+			groups.sortBy(_.name).foreach({ g =>
+				json.key(g.name).array()
+				g.measurements.foreach({ m => json.value(m)})
+				json.endArray()
+			})
 
-			jsonFiles.endArray().endObject()
-			resp.getWriter.append(jsonFiles.toString)
+			json.endObject().endObject()
 		} else {
-			val source = Source.fromFile(basePath + filename).getLines()
-/*
-			val headerLine = source.take(1).next()
+			val groupObject = measurementRepository.findByName(group).head
 
-			for (line <- source) {
-				val Array(time, _latitude, _longitude, _velocity, _heading) = line.split(";").map(_.trim)
-				val velocityKmh = _velocity.replace(",", ".").toDouble * 1.852
-				val latitude = _latitude.replace(",", ".").toDouble
-				val longitude = _longitude.replace(",", ".").toDouble
-				val orientation = _heading.replace(",", ".").toDouble.toRadians
+			json.`object`()
 
-				// only include one measurement per second
-				if (time.indexOf(",") == -1 || time.split(",").apply(1).equals("00")) {
-					// ignore slow movements for creating the road
-					if (velocityKmh > 1.0) {
-						handlePointForRoad(latitude, longitude, velocityKmh)
-					}
+			json.key("measurements").value(convertMeasurementsFile(groupObject))
 
-					try {
-						val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60 + time.substring(4, 6).toLong) * 1000
-
-						measurements add (new MeasurementPoint(date, new GHPoint3D(latitude, longitude, 0.0), velocityKmh, orientation))
-					} catch {
-						case ex: NumberFormatException =>
-							log.error(s"Could not parse time '$time': ${ex.getMessage}")
-					}
-				}
-			}
-*/
-			val file = new MeasurementFile(source)
-
-			val jsonContents = new JSONStringer().`object`()
-
-			jsonContents.key("measurements").value(convertMeasurementsFile(file))
-
-			jsonContents.key("road").value(convertRoadForFrontend())
-
-			resp.getWriter.append(jsonContents.endObject().toString)
+			json.endObject()
 		}
+		resp.getWriter.append(json.toString)
 	}
 
-
-	def convertRoadForFrontend(): JSONObject = {
-		val road = roadBuilder map {
-			_.build
-		} get
-		val optimizedRoad = RouteFactory.simplifyRoadSegments(road, 15.0)
-
-		val points: List[GHPoint3D] = road.map(_.end) :+ road.head.start
-
+	def convertMeasurementsFile(measurement: Measurement): JSONObject = {
 		val json = new JSONObject()
-		json.put("road", JavaConversions.mapAsJavaMap(
-			Map(
-				"before optimization" -> road.size,
-				"after optimization" -> optimizedRoad.size,
-				"segments" -> JavaConversions.seqAsJavaList(points)
-			)
-		))
-		json
-	}
 
-	def convertMeasurementsFile(measurementFile: MeasurementFile): JSONArray = {
-		val json = new JSONArray()
-
-		// the measurement groups
-		for (measurement <- measurementFile.groups) {
-			val obj = new JSONObject()
-			// the measurements within one group
-			for (datum <- measurement) {
-				obj.put(datum.date.toString, new JSONObject(JavaConversions.mapAsJavaMap(Map(
-					"position" -> datum.position,
-					"speed" -> datum.velocity,
-					"direction" ->datum.orientation
-				))))
-			}
-			json.put(obj)
+		for (datum <- measurement.points) {
+			json.put(datum.date.toString, datum: JSONObject)
 		}
 		json
 	}
 
-	def handlePointForRoad(latitude: Double, longitude: Double, velocity: Double) = {
-		val point = new GHPoint3D(latitude, longitude, 0.0)
-
-		roadBuilder match {
-			case None => roadBuilder = Some(new RoadBuilder(point))
-
-			case _ => roadBuilder map {
-				_.addSegment(point)
-			}
-		}
-	}
 
 }

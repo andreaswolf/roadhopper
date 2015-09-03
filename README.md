@@ -30,7 +30,7 @@ Currently, there are no scripts to run the software, so you need to configure it
 with the following parameters:
 
   * Main class: info.andreaswolf.roadhopper.server.RoadHopperServer
-  * VM options: -Djetty.port=8989 -Dconfig.file=./roadhopper/application.conf
+  * VM options: -Djetty.port=8989 -Dconfig.file=./roadhopper/application.conf -Dorientdb.config.file=./roadhopper/orientdb/orientdb-server-config.xml -DORIENTDB_HOME=./roadhopper/orientdb/
   * Program arguments: jetty.resourcebase=./web/src/main/webapp/ config=./config.properties graph.location=&lt;Path to your data directory&gt; osmreader.osm=&lt;Path to your OSM file&gt; graph.elevation.provider=srtm
   * Working directory: _Path to GraphHopper_
 
@@ -42,6 +42,16 @@ the IDE workspace.
 When starting the software, GraphHopper will process the OSM file and create its internal data structure. Afterwards,
 head to http://localhost:8989 and select two points. Then, a simulation will run – currently, a very rough estimate.
 I’m working on that ;-). Afterwards, you see a t–v diagram at the bottom right.
+
+
+Measurement Data import
+-----------------------
+
+  * Main class: info.andreaswolf.roadhopper.measurements.Importer
+  * VM options, program arguments, working directory: _See above_
+
+The CSV files must be placed in the folder `measurements/` in the configured working directory. To adjust the folder name,
+set the property `measurements.path` in your program options.
 
 
 Building RoadHopper

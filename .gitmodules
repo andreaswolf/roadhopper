@@ -1,0 +1,3 @@
+[submodule "lib/Soriento"]
+	path = lib/Soriento
+	url = https://github.com/dimparf/Soriento.git

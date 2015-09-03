@@ -8,6 +8,14 @@
 			style: {color: "#00cc33", "weight": 5, "opacity": 0.6} // route color and style
 		};
 	});
+
+
+	var $groupList = $('<ul id="measurement-groups" />');
+	var $group = $('<ul id="measurement-group" />');
+
+	var measurementGroups = [];
+
+
 	var playback = new TimeSeriesPlayback();
 	var running = false;
 	// TODO this callback must not be registered twice!
@@ -43,40 +51,47 @@
 		measurementRoad.addData(geoJson);
 	};
 
-	var fetchMeasurement = function () {
-		var fileName = $(this).data('name');
-		console.info("Starting to load data set" + fileName);
-		$('#measurement-file-indicator').text('Loading file ' + fileName + '…');
+	var renderGroups = function() {
+		for (var file in measurementGroups) {
+			if (measurementGroups.hasOwnProperty(file)) {
+				$groupList.append($('<li data-group="' + file + '">' + file + '</li>'));
+			}
+		}
+		$groupList.show();
+		$group.hide();
+	};
+
+	var showGroup = function() {
+		var groupName = $(this).data('group');
+
+		var measurements = measurementGroups[groupName];
+
+		$group.empty();
+		for (var i = 0; i < measurements.length; ++i) {
+			$group.append($('<li data-measurement="' + measurements[i] + '">' + measurements[i] + '</li>'));
+		}
+		$groupList.hide();
+		$group.show();
+	};
+
+	var loadMeasurement = function (name, $listItem) {
+		console.info("Starting to load data set" + name);
+
+		$listItem.css('font-style', 'italic');
 
 		$.ajax({
 			timeout: 30000,
-			url: host + '/roadhopper/measurements?name=' + fileName,
+			url: host + '/roadhopper/measurements?name=' + name,
 			success: function (json) {
-				$('#measurement-files').hide();
-				$('#measurement-file-indicator').text('Loaded file ' + fileName);
 				var measurements = json["measurements"];
-				console.debug(typeof( measurements));
-				if (measurements instanceof Array) {
-					var measurementList = $('<ul />');
-					for (var i = 0; i < measurements.length; ++i) {
-						// Get the length of the measurement
-						var keys = Object.keys(measurements[i]);
-						var length = ((keys[keys.length - 1] - keys[0]) / 1000).toFixed(0);
-
-						measurementList.append($('<li data-id="' + i + '">Measurement ' + i + ' (' + length + 's)' + '</li>'))
-					}
-					measurementList.on('click', 'li', function() {
-						var i = $(this).data('id');
-						$(this).siblings('li').css('font-weight', 'normal');
-						$(this).css('font-weight', 'bold');
-						console.debug(i);
-						drawMeasurement(measurements[i]);
-					});
-					$('#measurement-file-indicator').append(measurementList);
-				}
+				drawMeasurement(measurements);
 			},
 			error: function (err) {
 				console.error("Error while fetching measurements", err);
+			},
+			complete: function() {
+				$listItem.siblings('li').css('font-weight', 'normal').css('font-style', 'regular');
+				$listItem.css('font-weight', 'bold').css('font-style', 'regular');
 			},
 			type: "GET",
 			dataType: "json",
@@ -88,11 +103,12 @@
 	 * Constructor for the module. Creates the module contents and registers it with the roadhopper module.
 	 */
 	(function () {
-		var $fileList = $('<ul id="measurement-files" />');
-		var $moduleContents = $('<div id="measurement-file-indicator" />').append($fileList);
-
+		var $moduleContents = $('<div id="measurement-file-indicator" />').append($groupList).append($group);
 		roadHopper.addModule("measurements", "Measurements", $moduleContents);
-		$fileList.on('click', 'li', fetchMeasurement);
+		$groupList.on('click', 'li', showGroup);
+		$group.on('click', 'li', function() {
+			loadMeasurement($(this).data('measurement'), $(this));
+		});
 
 		$.ajax({
 			timeout: 30000,
@@ -101,10 +117,8 @@
 			dataType: "json",
 			crossDomain: true,
 			success: function (json) {
-				var files = json["files"];
-				for (var i = 0; i < files.length; ++i) {
-					$fileList.append($('<li data-name="' + files[i] + '">' + files[i] + '</li>'));
-				}
+				measurementGroups = json["files"];
+				renderGroups();
 			}
 		});
 	})();
