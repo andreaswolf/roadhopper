@@ -32,7 +32,7 @@ object DataPoint {
 		new JSONObject()
 			.put("date", point.date)
 			.put("position", point.position: JSONObject)
-			.put("velocity", point.velocity)
+			.put("speed", point.velocity)
 			.put("orientation", point.orientation)
 	}
 
