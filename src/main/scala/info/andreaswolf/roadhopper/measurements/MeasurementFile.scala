@@ -41,7 +41,9 @@ class MeasurementFile(val name: String, val lines: Iterator[String], val headerL
 		def endMeasurementGroup(): Unit = {
 			val newSet = buffer
 			if (newSet.nonEmpty) {
-				items.append(new Measurement(name + "_" + group, buffer.toList, roadBuilder.map(_.build).getOrElse(List[RoadSegment]())))
+				if (roadBuilder.isDefined && roadBuilder.get.segments.nonEmpty) {
+					items.append(new Measurement(name + "_" + group, buffer.toList, roadBuilder.map(_.build).get))
+				}
 				roadBuilder = None
 				group += 1
 			}
