@@ -1,6 +1,14 @@
 (function (roadHopper, $) {
 
+	/**
+	 * The layers to display the measurement data on.
+	 */
 	var measuredRoad, measurementRoad;
+
+	/**
+	 * The map coordinates that were matched from the measurement.
+	 */
+	var matchedRoad = null;
 
 	roadHopper.initMapCallbacks.push(function () {
 		measuredRoad = L.geoJson().addTo(map);
@@ -16,6 +24,7 @@
 
 	var $groupList = $('<ul id="measurement-groups" />');
 	var $group = $('<ul id="measurement-group" />');
+	var $simulateButton = $('<button class="simulate">Simulate this</button>');
 
 	var measurementGroups = [];
 
@@ -35,8 +44,9 @@
 		$("#vehicle-status").find('[data-index="speed"]').text(playback.timeSeries.speedForTime(time).toFixed(2));
 	});
 
-	var drawMeasurement = function (measurement, matchedRoad) {
+	var drawMeasurement = function (measurement, _matchedRoad) {
 		var timeSeries = new TimeSeriesDataSet(measurement);
+		matchedRoad = _matchedRoad;
 
 		playback.setData(timeSeries);
 
@@ -107,6 +117,8 @@
 			complete: function() {
 				$listItem.siblings('li').css('font-weight', 'normal').css('font-style', 'regular');
 				$listItem.css('font-weight', 'bold').css('font-style', 'regular');
+				$listItem.siblings('li').find('button').remove();
+				$listItem.append($simulateButton);
 			},
 			type: "GET",
 			dataType: "json",
@@ -123,6 +135,20 @@
 		$groupList.on('click', 'li', showGroup);
 		$group.on('click', 'li', function() {
 			loadMeasurement($(this).data('measurement'), $(this));
+		});
+		$group.on('click', 'button.simulate', function() {
+			console.debug("road:", matchedRoad);
+
+			// TODO clear the routing layer
+
+			var from = matchedRoad[0];
+			var to = matchedRoad[matchedRoad.length - 1];
+			initFromParams({
+				point: [
+					[from[1], from[0]],
+					[to[1], to[0]]
+				]
+			});
 		});
 
 		$.ajax({
