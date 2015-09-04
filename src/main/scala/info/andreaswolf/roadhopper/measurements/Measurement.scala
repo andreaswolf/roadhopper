@@ -41,4 +41,9 @@ object Measurement {
 
 }
 
-case class Measurement(name: String, @EmbeddedList points: LinearSeq[DataPoint], road: List[RoadSegment]) {}
+case class Measurement(name: String, @EmbeddedList points: LinearSeq[DataPoint], road: List[RoadSegment]) {
+	lazy val duration = points.length match {
+		case x if x <= 2 => 0
+		case x => points.reverse.head.date - points.head.date
+	}
+}

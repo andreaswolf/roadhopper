@@ -74,6 +74,8 @@ class MeasurementsServlet extends BaseServlet {
 
 			json.`object`()
 
+			json.key("duration").value(measurementObject.duration)
+
 			json.key("measurements").value(convertMeasurementsFile(measurementObject))
 
 			try {
