@@ -176,6 +176,11 @@
 			<scope>test</scope>
 		</dependency>
 		-->
+		<dependency>
+			<groupId>com.graphhopper</groupId>
+			<artifactId>map-matching</artifactId>
+			<version>0.5.0.0</version>
+		</dependency>
 
 		<!-- necessary to use guice ('@Inject') in servlets -->
 		<dependency>

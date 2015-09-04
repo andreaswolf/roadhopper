@@ -6,23 +6,26 @@
 
 package info.andreaswolf.roadhopper.server
 
-import java.io.File
-import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 import com.google.inject.Inject
-import com.graphhopper.util.CmdArgs
-import info.andreaswolf.roadhopper.measurements.{Measurement, DataPoint, MeasurementFile, MeasurementRepository}
+import com.graphhopper.GraphHopper
+import com.graphhopper.matching.{EdgeMatch, LocationIndexMatch, MapMatching}
+import com.graphhopper.storage.NodeAccess
+import com.graphhopper.storage.index.LocationIndexTree
+import com.graphhopper.util.{CmdArgs, GPXEntry}
+import info.andreaswolf.roadhopper.measurements.{DataPoint, Measurement, MeasurementRepository}
 import info.andreaswolf.roadhopper.persistence.Database
 import org.json.{JSONArray, JSONObject, JSONStringer}
 import org.slf4j.LoggerFactory
 
-import scala.collection.{JavaConversions, mutable}
-import scala.io.Source
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
  * Servlet to convert data from the measurements done by HEV to a format usable for display in the map.
  */
-class MeasurementsServlet extends HttpServlet {
+class MeasurementsServlet extends BaseServlet {
 
 	@Inject
 	var args: CmdArgs = null
@@ -30,6 +33,8 @@ class MeasurementsServlet extends HttpServlet {
 	@Inject var database: Database = null
 
 	@Inject var measurementRepository: MeasurementRepository = null
+
+	@Inject var hopper: GraphHopper = null
 
 	val measurements = new mutable.TreeSet[DataPoint]()
 
@@ -46,26 +51,39 @@ class MeasurementsServlet extends HttpServlet {
 	}
 
 	override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
-		val group = req.getParameter("name")
+		val measurement = req.getParameter("name")
 
 		val json = new JSONStringer
-		if (group == null) {
+		if (measurement == null) {
 			val groups = measurementRepository.findAllGroups
 			json.`object`().key("files").`object`()
 
 			groups.sortBy(_.name).foreach({ g =>
 				json.key(g.name).array()
-				g.measurements.foreach({ m => json.value(m)})
+				g.measurements.foreach({ m => json.value(m) })
 				json.endArray()
 			})
 
 			json.endObject().endObject()
 		} else {
-			val groupObject = measurementRepository.findByName(group).head
+			val foundMeasurements: List[Measurement] = measurementRepository.findByName(measurement)
+			if (foundMeasurements.isEmpty) {
+				writeError(resp, 404, s"Measurement $measurement not found")
+			}
+			val measurementObject = foundMeasurements.head
 
 			json.`object`()
 
-			json.key("measurements").value(convertMeasurementsFile(groupObject))
+			json.key("measurements").value(convertMeasurementsFile(measurementObject))
+
+			try {
+				implicit val nodes: NodeAccess = hopper.getGraphHopperStorage.getNodeAccess
+				val matchedCoordinates: JSONArray = matchCoordinates(measurementObject): JSONArray
+				json.key("matchedRoad").value(matchedCoordinates)
+			} catch {
+				case e: RuntimeException =>
+				json.key("matchedRoad").value("Matching error: " + e.getMessage)
+			}
 
 			json.endObject()
 		}
@@ -81,5 +99,40 @@ class MeasurementsServlet extends HttpServlet {
 		json
 	}
 
+	/**
+	 * Converts a bunch of edges into a continuous list of coordinates fit for GeoJSON usage.
+	 *
+	 * @return A list of [lon,lat] pairs
+	 */
+	implicit def convertCoordinatesToJSON(edges: List[EdgeMatch])(implicit nodes: NodeAccess): JSONArray = {
+		val result = new JSONArray()
+		if (edges.isEmpty) {
+			return result
+		}
+
+		val node: Int = edges.head.getEdgeState.getBaseNode
+		result.put(new JSONArray().put(nodes.getLon(node)).put(nodes.getLat(node)))
+		edges.foreach(edge => {
+			// add the
+			val wayNodes = edge.getEdgeState.fetchWayGeometry(2)
+			for (i <- 0 to wayNodes.size() - 1) {
+				result.put(new JSONArray().put(wayNodes.getLon(i)).put(wayNodes.getLat(i)))
+			}
+		})
+
+		result
+	}
+
+	def matchCoordinates(measurement: Measurement): List[EdgeMatch] = {
+		val graph = hopper.getGraphHopperStorage
+		val locationIndex = new LocationIndexMatch(graph, hopper.getLocationIndex.asInstanceOf[LocationIndexTree])
+		val mapMatching = new MapMatching(graph, locationIndex, hopper.getEncodingManager.getEncoder("car"))
+
+		val gpxPointsBuffer = new ListBuffer[GPXEntry]()
+		measurement.points.foreach(dp => gpxPointsBuffer.append(new GPXEntry(dp.position, dp.date)))
+
+		import scala.collection.JavaConversions._
+		mapMatching.doWork(gpxPointsBuffer.toList).getEdgeMatches.toList
+	}
 
 }
