@@ -16,9 +16,10 @@ import com.graphhopper.storage.index.LocationIndexTree
 import com.graphhopper.util.{CmdArgs, GPXEntry}
 import info.andreaswolf.roadhopper.measurements.{DataPoint, Measurement, MeasurementRepository}
 import info.andreaswolf.roadhopper.persistence.Database
-import org.json.{JSONArray, JSONObject, JSONStringer}
+import org.json.{JSONString, JSONArray, JSONObject, JSONStringer}
 import org.slf4j.LoggerFactory
 
+import scala.StringBuilder
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -72,11 +73,43 @@ class MeasurementsServlet extends BaseServlet {
 			}
 			val measurementObject = foundMeasurements.head
 
+			resp.getWriter.append(new JsonExporter().exportMeasurement(measurementObject))
+		}
+	}
+
+
+
+	trait MeasurementExporter {
+		def exportMeasurement(measurementObject: Measurement): String
+	}
+
+
+
+	class JsonExporter extends MeasurementExporter {
+
+		class JSONMeasurement(val measurement: Measurement) extends JSONString {
+			/**
+			 * Converts the data points of a given measurement to a JSON object with the time as the key.
+			 */
+			def toJSONString: String = {
+				val json = new JSONStringer().`object`()
+
+				for (datum <- measurement.points) { // .seq.sortWith((a, b) => a.date < b.date)
+					json.key(datum.date.toString).value(datum: JSONObject)
+				}
+				json.endObject()
+				json.toString
+			}
+		}
+
+		def exportMeasurement(measurementObject: Measurement): String = {
+			val json = new JSONStringer
+
 			json.`object`()
 
 			//json.key("duration").value(measurementObject.duration)
 
-			json.key("measurements").value(convertMeasurementsFile(measurementObject))
+			json.key("measurements").value(new JSONMeasurement(measurementObject))
 
 			try {
 				implicit val nodes: NodeAccess = hopper.getGraphHopperStorage.getNodeAccess
@@ -84,12 +117,11 @@ class MeasurementsServlet extends BaseServlet {
 				json.key("matchedRoad").value(matchedCoordinates)
 			} catch {
 				case e: RuntimeException =>
-				json.key("matchedRoad").value("Matching error: " + e.getMessage)
+					json.key("matchedRoad").value("Matching error: " + e.getMessage)
 			}
 
-			json.endObject()
+			json.endObject().toString
 		}
-		resp.getWriter.append(json.toString)
 	}
 
 	def convertMeasurementsFile(measurement: Measurement): JSONObject = {
