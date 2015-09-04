@@ -92,7 +92,7 @@ class MeasurementFile(val name: String, val lines: Iterator[String], val headerL
 					val date = (time.substring(0, 2).toLong * 3600 + time.substring(2, 4).toLong * 60
 						+ time.substring(4, 6).toLong) * 1000 + time.substring(7, 9).toLong * 10
 
-					buffer += DataPoint(date, Point(latitude, longitude, 0.0), velocityKmh, orientation)
+					buffer += DataPoint(date, Point(latitude, longitude, 0.0), velocityKmh / 3.6, orientation)
 				} catch {
 					case ex: NumberFormatException =>
 						log.error(s"Could not parse time '$time': ${ex.getMessage}")
