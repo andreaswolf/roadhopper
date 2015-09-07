@@ -1,5 +1,6 @@
 package info.andreaswolf.roadhopper.road
 
+import com.graphhopper.reader.dem.{HighPrecisionSRTMProvider, ElevationProvider}
 import com.graphhopper.util.shapes.GHPoint3D
 
 object RoadSegment {
@@ -8,6 +9,8 @@ object RoadSegment {
 	 * The earth’s radius as defined for WGS84.
 	 */
 	val R = 6371000
+
+	var eleProvider: ElevationProvider = new HighPrecisionSRTMProvider
 
 	/**
 	 *
@@ -18,7 +21,10 @@ object RoadSegment {
 	 * @return A RoadSegment instance created from the coordinates
 	 */
 	def fromCoordinates(lat1: Double, lon1: Double, lat2: Double, lon2: Double): RoadSegment = {
-		new RoadSegment(new GHPoint3D(lat1, lon1, 0.0), new GHPoint3D(lat2, lon2, 0.0))
+		new RoadSegment(
+			new GHPoint3D(lat1, lon1, eleProvider.getEle(lat1, lon1)),
+			new GHPoint3D(lat2, lon2, eleProvider.getEle(lat2, lon2))
+		)
 	}
 
 	def fromPoints(start: GHPoint3D, end: GHPoint3D): RoadSegment = {
@@ -41,7 +47,7 @@ object RoadSegment {
 		val newLon = startLon + Math.atan2(Math.sin(orientation) * Math.sin(length / R) * Math.cos(startLat),
 			Math.cos(length / R) - Math.sin(startLat) * Math.sin(newLat))
 
-		val end = new GHPoint3D(newLat.toDegrees, newLon.toDegrees, start.ele)
+		val end = new GHPoint3D(newLat.toDegrees, newLon.toDegrees, eleProvider.getEle(newLat.toDegrees, newLon.toDegrees))
 
 		new RoadSegment(start, end)
 	}
@@ -68,7 +74,10 @@ object RoadSegment {
 		val newLon = oldLon + Math.atan2(Math.sin(base.orientation) * Math.sin(offset / R) * Math.cos(oldLat),
 			Math.cos(offset / R) - Math.sin(oldLat) * Math.sin(newLat))
 
-		new RoadSegment(new GHPoint3D(newLat.toDegrees, newLon.toDegrees, 0.0), base)
+		new RoadSegment(
+			new GHPoint3D(newLat.toDegrees, newLon.toDegrees, eleProvider.getEle(newLat.toDegrees, newLon.toDegrees)),
+			base
+		)
 	}
 
 	/**
@@ -93,7 +102,9 @@ object RoadSegment {
 		val newLon = oldLon - Math.atan2(Math.sin(base.orientation) * Math.sin(offset / R) * Math.cos(oldLat),
 			Math.cos(offset / R) - Math.sin(oldLat) * Math.sin(newLat))
 
-		new RoadSegment(base, new GHPoint3D(newLat.toDegrees, newLon.toDegrees, 0.0))
+		new RoadSegment(base,
+			new GHPoint3D(newLat.toDegrees, newLon.toDegrees, eleProvider.getEle(newLat.toDegrees, newLon.toDegrees))
+		)
 	}
 
 	/**
@@ -146,6 +157,19 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D, val speedLimit: Doub
 
 	// length is slightly inaccurate as we use a simplified formula for calculating it
 	lazy val (length, orientation) = RoadSegment.getLengthAndOrientation(start, end)
+
+	/**
+	 * The grade of the road in rad
+	 */
+	lazy val grade = Math.atan((end.ele - start.ele) / length match {
+		// ignore grade on short segments => it might lead to absurd results
+		case x if length < 10.0 => 0.0
+		case x if x == Double.NaN => 0.0
+		// ignore grades greater than 35%; these are also unrealistic
+		case x if x > 0.35 => 0.35
+		case x if x < -0.35 => -0.35
+		case x => x
+	})
 
 
 	var roadSign = None: Option[RoadSign]

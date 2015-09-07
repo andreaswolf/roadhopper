@@ -2,6 +2,8 @@ package info.andreaswolf.roadhopper.server;
 
 import com.graphhopper.GraphHopper;
 import com.graphhopper.http.DefaultModule;
+import com.graphhopper.reader.dem.HighPrecisionSRTMProvider;
+import com.graphhopper.reader.dem.SRTMProvider;
 import com.graphhopper.util.CmdArgs;
 import info.andreaswolf.roadhopper.RoadHopper;
 import info.andreaswolf.roadhopper.measurements.MeasurementRepository;
@@ -35,6 +37,7 @@ public class RoadHopperModule extends DefaultModule
 	{
 		super.configure();
 		bind(RoadHopper.class).toInstance((RoadHopper) getGraphHopper());
+		bind(SRTMProvider.class).toInstance(new HighPrecisionSRTMProvider());
 
 		Database database = new Database();
 		bind(Database.class).toInstance(database);

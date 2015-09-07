@@ -71,7 +71,8 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 
 		Future.sequence(List(
 			signalBus ? UpdateSignalValue("pos", currentSegmentRest.start),
-			signalBus ? UpdateSignalValue("seg", currentSegment)
+			signalBus ? UpdateSignalValue("seg", currentSegment),
+			signalBus ? UpdateSignalValue("grade", currentSegment.grade)
 		))
 	}
 

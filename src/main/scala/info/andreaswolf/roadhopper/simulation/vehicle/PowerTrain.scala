@@ -108,10 +108,12 @@ class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Pr
 	override def invoke(signals: SignalState): Future[Any] = {
 		val currentVelocity = signals.signalValue("v", 0.0)
 
-		// TODO respect vehicle’s current grade, also calculate the climbing resistance
+		val grade: Double = signals.signalValue("grade", 0.0)
+		val climbingResistance = Math.sin(grade) * 9.81 * vehicleParameters.mass
+
 		val rollingFrictionForce = currentVelocity match {
 			case x if x > 0.0 =>
-				4 * vehicleParameters.wheelDragCoefficient * vehicleParameters.mass * 9.81
+				4 * vehicleParameters.wheelDragCoefficient * vehicleParameters.mass * 9.81 * Math.cos(grade)
 
 			case x =>
 				0.0
@@ -127,8 +129,8 @@ class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Pr
 
 		val brakeForce = signals.signalValue("beta*", 0.0) * vehicleParameters.maximumBrakingForce
 
-		val effectiveForce = engineForce - rollingFrictionForce - dragForce - brakeForce
-		log.debug(s"forces: (eff/engine/drag/rolling/brake): $effectiveForce/$engineForce/$dragForce/$rollingFrictionForce/$brakeForce")
+		val effectiveForce = engineForce - rollingFrictionForce - dragForce - brakeForce - climbingResistance
+		log.info(s"forces: (eff/engine/drag/rolling/brake/climbing): $effectiveForce/$engineForce/$dragForce/$rollingFrictionForce/$brakeForce/$climbingResistance")
 
 		// TODO add a factor for rotational inertia
 		val acceleration = effectiveForce / vehicleParameters.mass
