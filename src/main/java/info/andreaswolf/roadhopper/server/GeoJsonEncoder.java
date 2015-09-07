@@ -60,6 +60,7 @@ class GeoJsonEncoder
 		partInfo.put("coordinates", points);
 		partInfo.put("length", segment.length());
 		partInfo.put("orientation", segment.orientation());
+		partInfo.put("grade", segment.grade());
 		partInfo.put("speedLimit", segment.speedLimit());
 	}
 

@@ -93,28 +93,51 @@ var roadhopper = {
 		})
 	},
 
-	drawRoute: function(jsonData) {
+	drawRoute: function (jsonData) {
 		routingLayer.clearLayers();
 		// re-add the start/end flags we removed earlier
 		flagAll();
 
+		var gradeColor = function (grade) {
+			var maximumGrade = 0.35, minimumGrade = -0.35, _colors = [
+				"#4575b4",
+				"#91bfdb",
+				"#e0f3f8",
+				"#ffffbf",
+				"#fee090",
+				"#fc8d59",
+				"#d73027"
+			];
+			var gradeIndex = Math.floor((grade + maximumGrade) * 6 / (maximumGrade - minimumGrade));
+			console.debug(grade, gradeIndex);
+			return _colors[gradeIndex];
+		};
+		var randomColor = function () {
+			return '#' + (function lol(m, s, c) {
+					return s[m.floor(m.random() * s.length)] +
+						(c && lol(m, s, c - 1));
+				})(Math, '0123456789ABCDEF', 4)
+		};
+
 		var i = 0;
 		L.geoJson(jsonData["points"], {
-			filter: function(feature) {
+			filter: function (feature) {
 				return feature.type == 'LineString';
 			},
 			style: function (feature) {
 				return {
-					color: '#'+ (function lol(m,s,c){return s[m.floor(m.random() * s.length)] +
-							(c && lol(m,s,c-1));})(Math,'0123456789ABCDEF',4),
-					"weight": 5,
-					"opacity": 0.9
+					color: gradeColor(feature.geometry.grade || 0.0), /*randomColor(),*/
+					"weight": (Math.abs(feature.geometry.grade) < 0.1) ? 5 : 10,
+					"opacity": 1
 				};
 			},
-			onEachFeature: function(feature, layer) {
+			onEachFeature: function (feature, layer) {
 				if (feature.length) {
-					layer.bindPopup(i + " - Länge: " + feature.length.toFixed(0) + " - "
-						+ toNormalizedDegrees(feature.orientation) + "° - speed limit: " + (feature["speedLimit"] * 3.6).toFixed(0) + " km/h"
+					console.debug(feature);
+					layer.bindPopup(i + " - Länge: " + feature.length.toFixed(0) + "<br/>"
+						+ "orientation: " + toNormalizedDegrees(feature.orientation) + "°<br />"
+						+ "speed limit: " + (feature["speedLimit"] * 3.6).toFixed(0) + " km/h<br />"
+						+ "grade: " + toDegrees(feature.grade) + "°"
 					);
 				}
 				++i;
