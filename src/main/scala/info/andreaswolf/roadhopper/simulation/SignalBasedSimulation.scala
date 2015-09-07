@@ -13,6 +13,7 @@ import com.graphhopper.util.CmdArgs
 import com.graphhopper.util.shapes.GHPoint
 import info.andreaswolf.roadhopper.RoadHopper
 import info.andreaswolf.roadhopper.road.{Route, RouteFactory}
+import info.andreaswolf.roadhopper.simulation.SimulationParameters.PedalParameters
 import info.andreaswolf.roadhopper.simulation.control.{PIDController, PT1}
 import info.andreaswolf.roadhopper.simulation.driver.{TargetVelocityEstimator, VelocityController}
 import info.andreaswolf.roadhopper.simulation.signals.SignalBus.SubscribeToSignal
@@ -60,14 +61,23 @@ class SignalBasedSimulation(val route: Route, override val result: SimulationRes
 		maximumBrakingForce = 2000
 	)
 
+	val simulationParameters = new SimulationParameters(
+		pedal = new PedalParameters(500.0, -500.0), vehicle = vehicleParameters, route = route
+	)
+
 	val vehicle = new VehicleFactory(actorSystem, timer, signalBus).createVehicle(vehicleParameters)
 
 	val journey = actorSystem.actorOf(Props(new SignalsJourneyActor(timer, signalBus, route)), "journey")
 	val velocityEstimator = actorSystem.actorOf(Props(new TargetVelocityEstimator(signalBus, journey)))
 	val driver = actorSystem.actorOf(Props(new VelocityController(signalBus)))
-	val velocityController = actorSystem.actorOf(Props(new PIDController("v_diff", "alpha_in", -0.0069, -2.59e-3, 5.35e-8, signalBus)))
-	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 10, 500.0, 0.0, signalBus)))
-	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 10, -500.0, 0.0, signalBus)))
+	val velocityController = actorSystem.actorOf(Props(
+		new PIDController("v_diff", "alpha_in",
+			simulationParameters.velocityController.proportionalGain, simulationParameters.velocityController.integratorGain,
+			simulationParameters.velocityController.differentiatorGain, signalBus)
+	))
+
+	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 10, simulationParameters.pedal.gasPedalGain, 0.0, signalBus)))
+	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 10, simulationParameters.pedal.brakePedalGain, 0.0, signalBus)))
 	val brake = actorSystem.actorOf(Props(new Brake("beta", "beta*", 0, signalBus)))
 
 	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, result)))

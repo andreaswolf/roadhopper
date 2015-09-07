@@ -28,6 +28,9 @@ class TargetVelocityEstimator(bus: ActorRef, journey: ActorRef) extends Process(
 		}
 
 		val currentVelocity = signals.signalValue("v", 0.0)
+		// TODO pin the look ahead distance to the farthest point we ever encounter. i.e. save the value generated here
+		// and always check a new value if it goes beyond this point; if not, skip it because it will not add value—the need
+		// to lower our velocity will not vanish just because the new, lower velocity makes us look not so far ahead
 		val lookAheadDistance: Int = (currentVelocity * currentVelocity / (2 * 4.0)).round.toInt
 		journey ? GetRoadAhead(lookAheadDistance) flatMap {
 			case ReturnRoadAhead(roadSegments) => Future {
