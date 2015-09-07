@@ -113,7 +113,9 @@ class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Pr
 
 		val rollingFrictionForce = currentVelocity match {
 			case x if x > 0.0 =>
-				4 * vehicleParameters.wheelDragCoefficient * vehicleParameters.mass * 9.81 * Math.cos(grade)
+				// Some literature multiplies the drag with 4, but this is only necessary if the mass is calculated per
+				// wheel, which we don’t have.
+				vehicleParameters.wheelDragCoefficient * vehicleParameters.mass * 9.81 * Math.cos(grade)
 
 			case x =>
 				0.0
