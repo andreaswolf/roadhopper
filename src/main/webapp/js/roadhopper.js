@@ -391,6 +391,13 @@ TimeSeriesDataSet.prototype.speedForTime = function(time) {
 	return this.data[time.toString()]["speed"];
 };
 
+TimeSeriesDataSet.prototype.getTimestepSize = function () {
+	if (this.timestamps.length == 1) {
+		return 0;
+	}
+	return this.timestamps[1] - this.timestamps[0];
+};
+
 
 TimeSeriesPlayback = function() {
 	this.timeSeries = null;
@@ -412,6 +419,7 @@ TimeSeriesPlayback.prototype.setData = function(timeSeries) {
 		this.draw();
 	}
 	this.playback.clearData();
+	L.setOptions(this.playback, {tickLen: timeSeries.getTimestepSize()});
 	this.timeSeries = timeSeries;
 	this.playback.setData(timeSeries.asGeoJSON());
 };
