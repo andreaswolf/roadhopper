@@ -66,14 +66,17 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 	def updateRoad(): Future[Any] = {
 		// TODO dynamically calculate the distance to get (e.g. based on speed) or get it passed with the request
 		// check if we have probably advanced past the current segment
-		checkCurrentSegment()
+		val segmentChanged = checkCurrentSegment()
 		updateCurrentSegmentRest()
 
-		Future.sequence(List(
-			signalBus ? UpdateSignalValue("pos", currentSegmentRest.start),
-			signalBus ? UpdateSignalValue("seg", currentSegment),
-			signalBus ? UpdateSignalValue("grade", currentSegment.grade)
-		))
+		val futures = ListBuffer[Future[Any]]()
+		futures += signalBus ? UpdateSignalValue("pos", currentSegmentRest.start)
+		if (segmentChanged) {
+			futures append signalBus ? UpdateSignalValue("seg", currentSegment)
+			futures append signalBus ? UpdateSignalValue("grade", currentSegment.grade)
+			futures append signalBus ? UpdateSignalValue("v_limit", currentSegment.speedLimit)
+		}
+		Future.sequence(futures.toList)
 	}
 
 	def getRoadAhead(length: Double = 150.0): List[RoadSegment] = {

@@ -16,9 +16,10 @@ import com.graphhopper.storage.index.LocationIndexTree
 import com.graphhopper.util.{CmdArgs, GPXEntry}
 import info.andreaswolf.roadhopper.measurements.{DataPoint, Measurement, MeasurementRepository}
 import info.andreaswolf.roadhopper.persistence.Database
-import org.json.{JSONArray, JSONObject, JSONStringer}
+import org.json.{JSONString, JSONArray, JSONObject, JSONStringer}
 import org.slf4j.LoggerFactory
 
+import scala.StringBuilder
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -53,8 +54,15 @@ class MeasurementsServlet extends BaseServlet {
 	override def doGet(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
 		val measurement = req.getParameter("name")
 
-		val json = new JSONStringer
+		val format = req.getParameter("format") match {
+			case "csv" => "csv"
+			case "json" => "json"
+			case null => "json" // TODO use Content-Type header here
+		}
+		log.debug(s"Output format: $format")
+
 		if (measurement == null) {
+			val json = new JSONStringer
 			val groups = measurementRepository.findAllGroups
 			json.`object`().key("files").`object`()
 
@@ -65,6 +73,8 @@ class MeasurementsServlet extends BaseServlet {
 			})
 
 			json.endObject().endObject()
+
+			resp.getWriter.append(json.toString)
 		} else {
 			val foundMeasurements: List[Measurement] = measurementRepository.findByName(measurement)
 			if (foundMeasurements.isEmpty) {
@@ -72,11 +82,48 @@ class MeasurementsServlet extends BaseServlet {
 			}
 			val measurementObject = foundMeasurements.head
 
+			val exporter = format match {
+				case "json" => new JsonExporter()
+				case "csv" => new CsvExporter()
+			}
+
+			resp.getWriter.append(exporter.exportMeasurement(measurementObject))
+		}
+	}
+
+
+
+	trait MeasurementExporter {
+		def exportMeasurement(measurementObject: Measurement): String
+	}
+
+
+
+	class JsonExporter extends MeasurementExporter {
+
+		class JSONMeasurement(val measurement: Measurement) extends JSONString {
+			/**
+			 * Converts the data points of a given measurement to a JSON object with the time as the key.
+			 */
+			def toJSONString: String = {
+				val json = new JSONStringer().`object`()
+
+				for (datum <- measurement.points) { // .seq.sortWith((a, b) => a.date < b.date)
+					json.key(datum.date.toString).value(datum: JSONObject)
+				}
+				json.endObject()
+				json.toString
+			}
+		}
+
+		def exportMeasurement(measurementObject: Measurement): String = {
+			val json = new JSONStringer
+
 			json.`object`()
 
-			json.key("duration").value(measurementObject.duration)
+			//json.key("duration").value(measurementObject.duration)
 
-			json.key("measurements").value(convertMeasurementsFile(measurementObject))
+			json.key("measurements").value(new JSONMeasurement(measurementObject))
 
 			try {
 				implicit val nodes: NodeAccess = hopper.getGraphHopperStorage.getNodeAccess
@@ -84,57 +131,61 @@ class MeasurementsServlet extends BaseServlet {
 				json.key("matchedRoad").value(matchedCoordinates)
 			} catch {
 				case e: RuntimeException =>
-				json.key("matchedRoad").value("Matching error: " + e.getMessage)
+					json.key("matchedRoad").value("Matching error: " + e.getMessage)
 			}
 
-			json.endObject()
-		}
-		resp.getWriter.append(json.toString)
-	}
-
-	def convertMeasurementsFile(measurement: Measurement): JSONObject = {
-		val json = new JSONObject()
-
-		for (datum <- measurement.points) {
-			json.put(datum.date.toString, datum: JSONObject)
-		}
-		json
-	}
-
-	/**
-	 * Converts a bunch of edges into a continuous list of coordinates fit for GeoJSON usage.
-	 *
-	 * @return A list of [lon,lat] pairs
-	 */
-	implicit def convertCoordinatesToJSON(edges: List[EdgeMatch])(implicit nodes: NodeAccess): JSONArray = {
-		val result = new JSONArray()
-		if (edges.isEmpty) {
-			return result
+			json.endObject().toString
 		}
 
-		val node: Int = edges.head.getEdgeState.getBaseNode
-		result.put(new JSONArray().put(nodes.getLon(node)).put(nodes.getLat(node)))
-		edges.foreach(edge => {
-			// add the
-			val wayNodes = edge.getEdgeState.fetchWayGeometry(2)
-			for (i <- 0 to wayNodes.size() - 1) {
-				result.put(new JSONArray().put(wayNodes.getLon(i)).put(wayNodes.getLat(i)))
+		/**
+		 * Converts a bunch of edges into a continuous list of coordinates fit for GeoJSON usage.
+		 *
+		 * @return A list of [lon,lat] pairs
+		 */
+		implicit def convertCoordinatesToJSON(edges: List[EdgeMatch])(implicit nodes: NodeAccess): JSONArray = {
+			val result = new JSONArray()
+			if (edges.isEmpty) {
+				return result
 			}
-		})
 
-		result
+			val node: Int = edges.head.getEdgeState.getBaseNode
+			result.put(new JSONArray().put(nodes.getLon(node)).put(nodes.getLat(node)))
+			edges.foreach(edge => {
+				// add the
+				val wayNodes = edge.getEdgeState.fetchWayGeometry(2)
+				for (i <- 0 to wayNodes.size() - 1) {
+					result.put(new JSONArray().put(wayNodes.getLon(i)).put(wayNodes.getLat(i)))
+				}
+			})
+
+			result
+		}
+
+		def matchCoordinates(measurement: Measurement): List[EdgeMatch] = {
+			val graph = hopper.getGraphHopperStorage
+			val locationIndex = new LocationIndexMatch(graph, hopper.getLocationIndex.asInstanceOf[LocationIndexTree])
+			val mapMatching = new MapMatching(graph, locationIndex, hopper.getEncodingManager.getEncoder("car"))
+
+			val gpxPointsBuffer = new ListBuffer[GPXEntry]()
+			measurement.points.foreach(dp => gpxPointsBuffer.append(new GPXEntry(dp.position, dp.date)))
+
+			import scala.collection.JavaConversions._
+			mapMatching.doWork(gpxPointsBuffer.toList).getEdgeMatches.toList
+		}
 	}
 
-	def matchCoordinates(measurement: Measurement): List[EdgeMatch] = {
-		val graph = hopper.getGraphHopperStorage
-		val locationIndex = new LocationIndexMatch(graph, hopper.getLocationIndex.asInstanceOf[LocationIndexTree])
-		val mapMatching = new MapMatching(graph, locationIndex, hopper.getEncodingManager.getEncoder("car"))
 
-		val gpxPointsBuffer = new ListBuffer[GPXEntry]()
-		measurement.points.foreach(dp => gpxPointsBuffer.append(new GPXEntry(dp.position, dp.date)))
 
-		import scala.collection.JavaConversions._
-		mapMatching.doWork(gpxPointsBuffer.toList).getEdgeMatches.toList
+	class CsvExporter extends MeasurementExporter {
+		def exportMeasurement(measurementObject: Measurement): String = {
+			val output = new StringBuilder()
+
+			output.append("time,v\n")
+			val startTime = measurementObject.points.head.date
+			measurementObject.points.foreach(point => output.append(s"${point.date - startTime},${point.velocity}\n"))
+
+			output.toString()
+		}
 	}
 
 }
