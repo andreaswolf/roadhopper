@@ -52,7 +52,7 @@ class RoadBendAnalyzer {
 	}
 
 	private def isTurn(segA: RoadSegment, segB: RoadSegment): Boolean = {
-		Math.abs(segA.calculateNecessaryTurn(segB)) >= 25.0 * Math.PI / 180
+		Math.abs(segA.calculateNecessaryTurn(segB)).toDegrees >= 45.0
 	}
 
 	def findBends(roadSegments: List[RoadSegment]): List[RoadBend] = {

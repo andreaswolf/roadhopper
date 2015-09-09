@@ -22,7 +22,6 @@ object Turn {
 			case x if x > 110 => 7 / 3.6
 			case x if x > 80 => 10 / 3.6
 			case x if x > 60 => 15 / 3.6
-			case x if x > 30 => 25 / 3.6
 			case x => from.speedLimit
 		}
 
