@@ -133,7 +133,12 @@ class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Pr
 
 		val engineForce: Double = signals.signalValue("M", 0.0) * vehicleParameters.transmissionRatio / (vehicleParameters.wheelRadius / 100.0)
 
-		val brakeForce = signals.signalValue("beta*", 0.0) * vehicleParameters.maximumBrakingForce
+		val brakeForce = currentVelocity match {
+			case x if x > 0.0 =>
+				signals.signalValue("beta*", 0.0) * vehicleParameters.maximumBrakingForce
+			case x =>
+				0.0
+		}
 
 		val effectiveForce = engineForce - rollingFrictionForce - dragForce - brakeForce - climbingResistance
 		log.info(s"forces: (eff/engine/drag/rolling/brake/climbing): $effectiveForce/$engineForce/$dragForce/$rollingFrictionForce/$brakeForce/$climbingResistance")
