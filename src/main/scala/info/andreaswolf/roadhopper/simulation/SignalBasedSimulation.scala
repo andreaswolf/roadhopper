@@ -41,7 +41,20 @@ object SignalBasedSimulation extends App {
 	}
 }
 
-class SignalBasedSimulation(val route: Route, override val result: SimulationResult) extends Simulation(result) {
+class SignalBasedSimulation(val simulationParameters: SimulationParameters, override val result: SimulationResult)
+	extends Simulation(result) {
+
+	/**
+	 * Compatibility constructor to instantiate the simulation with just a route. A default set of parameters will be
+	 * used
+	 */
+	def this(route: Route, result: SimulationResult) {
+		this(new SimulationParameters(
+			pedal = new PedalParameters(gasPedalGain = 500.0, brakePedalGain = -500.0),
+			vehicle = VehicleParameters.CompactCar,
+			route = route
+		), result)
+	}
 
 	val actorSystem = ActorSystem.create("signals")
 
@@ -51,23 +64,9 @@ class SignalBasedSimulation(val route: Route, override val result: SimulationRes
 	val timer = actorSystem.actorOf(Props(new TwoStepSimulationTimer), "timer")
 	val signalBus = actorSystem.actorOf(Props(new SignalBus(timer)), "signalBus")
 
-	val vehicleParameters = new VehicleParameters(
-		mass = 1300,
-		dragCoefficient = 0.29, dragReferenceArea = 2.4,
-		wheelRadius = 32, wheelDragCoefficient = 0.012,
-		maximumEnginePower = 84000, maximumEngineTorque = 200, maximumEngineRpm = 12000,
-		engineEfficiencyFactor = 95,
-		transmissionRatio = 10.0,
-		maximumBrakingForce = 200
-	)
+	val vehicle = new VehicleFactory(actorSystem, timer, signalBus).createVehicle(VehicleParameters.CompactCar)
 
-	val simulationParameters = new SimulationParameters(
-		pedal = new PedalParameters(500.0, -500.0), vehicle = vehicleParameters, route = route
-	)
-
-	val vehicle = new VehicleFactory(actorSystem, timer, signalBus).createVehicle(vehicleParameters)
-
-	val journey = actorSystem.actorOf(Props(new SignalsJourneyActor(timer, signalBus, route)), "journey")
+	val journey = actorSystem.actorOf(Props(new SignalsJourneyActor(timer, signalBus, simulationParameters.route)), "journey")
 	val velocityEstimator = actorSystem.actorOf(Props(new TargetVelocityEstimator(signalBus, journey)))
 	val driver = actorSystem.actorOf(Props(new VelocityController(signalBus)))
 	val velocityController = actorSystem.actorOf(Props(

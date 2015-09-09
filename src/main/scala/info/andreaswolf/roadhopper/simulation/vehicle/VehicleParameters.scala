@@ -6,6 +6,21 @@
 
 package info.andreaswolf.roadhopper.simulation.vehicle
 
+object VehicleParameters {
+	/**
+	 * A set of vehicle parameters for a typical compact car with an electric engine.
+	 */
+	val CompactCar = new VehicleParameters(
+		mass = 1300,
+		dragCoefficient = 0.29, dragReferenceArea = 2.4,
+		wheelRadius = 32, wheelDragCoefficient = 0.012,
+		maximumEnginePower = 84000, maximumEngineTorque = 200, maximumEngineRpm = 12000,
+		engineEfficiencyFactor = 95,
+		transmissionRatio = 10.0,
+		maximumBrakingForce = 200
+	)
+}
+
 /**
  * A set of parameters that describe a vehicle
  *
