@@ -26,6 +26,10 @@ import scala.concurrent.{Await, Future}
 
 
 object SignalBasedSimulation extends App {
+	/**
+	 * Standalone app for testing the signal-based routing. To use RoadHopper in an actual use case, start
+	 * [[info.andreaswolf.roadhopper.server.RoadHopperServer]] instead.
+	 */
 	override def main(args: Array[String]): Unit = {
 		val cmdArgs = CmdArgs.read(args)
 		val roadHopperInstance = new RoadHopper
@@ -36,7 +40,11 @@ object SignalBasedSimulation extends App {
 		val points: List[GHPoint] = List(new GHPoint(49.010796, 8.375444), new GHPoint(49.01271, 8.418016))
 		val route = routeFactory.simplify(routeFactory.getRoute(points).parts, 2.0)
 
-		val simulation: SignalBasedSimulation = new SignalBasedSimulation(route, new SimulationResult)
+		val simulation: SignalBasedSimulation = new SignalBasedSimulation(new SimulationParameters(
+			pedal = new PedalParameters(gasPedalGain = 500.0, brakePedalGain = -500.0),
+			vehicle = VehicleParameters.CompactCar,
+			route = route
+		), new SimulationResult)
 		simulation.start()
 	}
 }
@@ -55,6 +63,8 @@ class SignalBasedSimulation(val simulationParameters: SimulationParameters, over
 			route = route
 		), result)
 	}
+
+	val route = simulationParameters.route
 
 	val actorSystem = ActorSystem.create("signals")
 

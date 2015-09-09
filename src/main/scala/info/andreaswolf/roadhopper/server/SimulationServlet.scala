@@ -9,7 +9,9 @@ import com.graphhopper.http.GraphHopperServlet
 import com.graphhopper.util.StopWatch
 import info.andreaswolf.roadhopper.RoadHopper
 import info.andreaswolf.roadhopper.road.{Route, RouteFactory, RouteRepository}
+import info.andreaswolf.roadhopper.simulation.SimulationParameters.PedalParameters
 import info.andreaswolf.roadhopper.simulation._
+import info.andreaswolf.roadhopper.simulation.vehicle.VehicleParameters
 import org.json.JSONObject
 
 import scala.collection.convert.decorateAll._
@@ -47,8 +49,14 @@ class SimulationServlet extends GraphHopperServlet {
 			route = routeFactory.simplify(routeFactory.getRoute(points.asScala.toList).parts, 2.0)
 		}
 
+		val simulationParameters = new SimulationParameters(
+			pedal = new PedalParameters(gasPedalGain = 500.0, brakePedalGain = -500.0),
+			vehicle = VehicleParameters.CompactCar,
+			route = route
+		)
+
 		val result = new SimulationResult()
-		val simulation = new SignalBasedSimulation(route, result)
+		val simulation = new SignalBasedSimulation(simulationParameters, result)
 		simulationRepository.add(simulation)
 
 		val resultLogger = simulation.actorSystem.actorOf(
