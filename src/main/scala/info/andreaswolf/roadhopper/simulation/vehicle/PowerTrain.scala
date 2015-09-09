@@ -109,7 +109,11 @@ class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Pr
 		val currentVelocity = signals.signalValue("v", 0.0)
 
 		val grade: Double = signals.signalValue("grade", 0.0)
-		val climbingResistance = Math.sin(grade) * 9.81 * vehicleParameters.mass
+		val climbingResistance = currentVelocity match {
+			case x if x > 0.0 => Math.sin(grade) * 9.81 * vehicleParameters.mass
+			// no climbing resistance if the vehicle is not moving => avoid rolling backwards
+			case x => 0.0
+		}
 
 		val rollingFrictionForce = currentVelocity match {
 			case x if x > 0.0 =>
