@@ -8,7 +8,9 @@ package info.andreaswolf.roadhopper.simulation.driver
 
 import akka.actor.{ActorLogging, ActorRef}
 import akka.pattern.ask
-import info.andreaswolf.roadhopper.simulation.{ReturnRoadAhead, GetRoadAhead}
+import info.andreaswolf.roadhopper.road.{RoadSignAnalyzer, StopSign, RoadSign}
+import info.andreaswolf.roadhopper.simulation.signals.Process.Invoke
+import info.andreaswolf.roadhopper.simulation.{TellTime, ReturnRoadAhead, GetRoadAhead}
 import info.andreaswolf.roadhopper.simulation.signals.SignalBus.UpdateSignalValue
 import info.andreaswolf.roadhopper.simulation.signals.{SignalState, Process}
 
@@ -21,6 +23,15 @@ import scala.concurrent.Future
 class TargetVelocityEstimator(bus: ActorRef, journey: ActorRef) extends Process(bus) with ActorLogging {
 
 	import context.dispatcher
+
+	/**
+	 * The time the vehicle should start again after stopping at a stop sign
+	 */
+	var timeAfterStop = 0
+	/**
+	 * The target velocity set before switching to the stop-sign cycle
+	 */
+	var velocityBeforeStop = 0.0
 
 	override def invoke(signals: SignalState): Future[Any] = {
 		if (time % 500 > 0) {
@@ -36,10 +47,55 @@ class TargetVelocityEstimator(bus: ActorRef, journey: ActorRef) extends Process(
 			case ReturnRoadAhead(roadSegments) => Future {
 				val minimumSpeedLimit = roadSegments.map(_.speedLimit).filter(_ > 0).min
 
+				val roadSignsAhead: List[RoadSign] = roadSegments.flatMap(_.roadSign)
+				if (roadSignsAhead.nonEmpty && roadSignsAhead.exists(_.isInstanceOf[StopSign])) {
+					val distance = RoadSignAnalyzer.getDistanceUntilFirstSign(roadSegments, classOf[StopSign])
+
+					// the sign might be behind the current look-ahead distance, as the segment it is on might be longer
+					// ignore short distances to the sign to not get trapped in an endless loop
+					if (distance > 2.0 && distance < lookAheadDistance) {
+						log.info("Approaching a stop sign")
+						context.become(approachingStopSign, discardOld = false)
+					}
+				}
+
 				log.debug(f"Setting speed limit to $minimumSpeedLimit%.2f; looked ${lookAheadDistance}m ahead")
 				bus ? UpdateSignalValue("v_target", minimumSpeedLimit)
 			}
 		}
 	}
-	
+
+	def approachingStopSign: Receive = {
+		case TellTime(_time) =>
+			_advanceTime(_time)
+
+		case Invoke(signalState) =>
+			val originalSender = sender()
+			invokeForStopSignal(signalState) andThen {
+				case x =>
+					originalSender ! true
+			}
+	}
+
+	def invokeForStopSignal(signals: SignalState): Future[Any] = {
+		if (timeAfterStop > 0 && time > timeAfterStop) {
+			timeAfterStop = 0
+			context unbecome()
+
+			// just let the next cycle handle the future target speed
+			bus ? UpdateSignalValue("v_target", velocityBeforeStop)
+		} else if (timeAfterStop == 0) {
+			velocityBeforeStop = signals.signalValue("v_target", 0.0)
+			val currentVelocity = signals.signalValue("v", 0.0)
+
+			if (currentVelocity < 1.0e-2) {
+				timeAfterStop = time + 1000
+			}
+
+			bus ? UpdateSignalValue("v_target", 0.0)
+		} else {
+			Future.successful()
+		}
+	}
+
 }

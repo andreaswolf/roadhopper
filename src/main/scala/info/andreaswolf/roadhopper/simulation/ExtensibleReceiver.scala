@@ -11,6 +11,8 @@ import akka.actor.Actor
 
 /**
  * Base structure for an Actor receive that can be defined by multiple classes in a hierarchy.
+ *
+ * TODO support multiple behaviours (context.become()/unbecome())
  */
 trait ExtensibleReceiver {
 

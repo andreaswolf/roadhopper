@@ -46,13 +46,7 @@ abstract class Process(val bus: ActorRef) extends Actor with ExtensibleReceiver 
 	 */
 	registerReceiver({
 		case TellTime(_time) =>
-			val oldTime = time
-			val originalSender = sender()
-			time = _time
-			timeAdvanced(oldTime, _time) andThen {
-				case x =>
-					originalSender ! true
-			}
+			_advanceTime(_time)
 
 		case Invoke(signalState) =>
 			val originalSender = sender()
@@ -63,6 +57,18 @@ abstract class Process(val bus: ActorRef) extends Actor with ExtensibleReceiver 
 
 	})
 
+	/**
+	 * Helper function for storing the new time and invoking the internal handler [[timeAdvanced()]].
+	 */
+	def _advanceTime(_time: Int): Unit = {
+		val oldTime = time
+		val originalSender = sender()
+		time = _time
+		timeAdvanced(oldTime, _time) andThen {
+			case x =>
+				originalSender ! true
+		}
+	}
 
 	def timeAdvanced(oldTime: Int, newTime: Int): Future[Any] = Future.successful()
 
