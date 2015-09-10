@@ -64,6 +64,13 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 	})
 
 	def updateRoad(): Future[Any] = {
+		if (journeyEnded) {
+			log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
+			// the shutdown will only be executed when all existing messages have been processed; therefore, we only tell the
+			// timer to stop, but leave shutting down the system up to it
+			timer ! Stop()
+			return Future.successful()
+		}
 		// TODO dynamically calculate the distance to get (e.g. based on speed) or get it passed with the request
 		// check if we have probably advanced past the current segment
 		val oldSegment = currentSegment
@@ -149,13 +156,8 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 	 * @return true if we are still within the road to travel, false if the journey has ended
 	 */
 	def checkCurrentSegment(): Boolean = {
-		// are we at or beyond the current segment’s end?
-		if (travelledUntilCurrentSegment + currentSegment.length - travelledDistance > 0.0) {
-			return true
-		}
-
-		// there are more segments ahead, so just continue with the next one
-		if (remainingSegments.nonEmpty) {
+				// there are more segments ahead, so just continue with the next one
+		if (remainingOnCurrentSegment < 0.0 && remainingSegments.nonEmpty) {
 			travelledUntilCurrentSegment += currentSegment.length
 
 			val nextSegment = remainingSegments.head
@@ -169,15 +171,26 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 
 			log.debug("RoadSegment ended, new segment length: " + currentSegment.length.formatted("%.2f"))
 			log.debug("Remaining segments: " + remainingSegments.length)
-
 			true
 		} else {
-			log.info("Journey ended after " + travelledUntilCurrentSegment + " (not accurate!)")
-			// the shutdown will only be executed when all existing messages have been processed; therefore, we only tell the
-			// timer to stop, but leave shutting down the system up to it
-			timer ! Stop()
 			false
 		}
 	}
 
+	/**
+	 * Checks if
+	 *
+	 * a) we are on the last segment and
+	 * b) if we travelled until after this segment’s end.
+	 */
+	def journeyEnded: Boolean = {
+		remainingSegments.isEmpty && remainingOnCurrentSegment < 0.0
+	}
+
+	/**
+	 * Returns the distance remaining on the current road segment, based on its length and the distance travelled
+	 */
+	def remainingOnCurrentSegment: Double = {
+		travelledUntilCurrentSegment + currentSegment.length - travelledDistance
+	}
 }
