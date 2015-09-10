@@ -15,7 +15,7 @@ import info.andreaswolf.roadhopper.simulation.signals.SignalState
 import org.json.JSONObject
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConversions
+import scala.collection.{mutable, JavaConversions}
 
 
 /**
@@ -72,8 +72,10 @@ class SimulationExportServlet extends BaseServlet {
 
 	class CsvSignalSerializer(val signals: List[String]) {
 		def serializeState(signalState: SignalState): String = {
-			val interestingValues = signalState.values.filterKeys(name => signals.contains(name)).toSeq
-				.sortWith((l, r) => signals.indexOf(l._1) < signals.indexOf(r._1))
+			val interestingValues = signals.foldLeft(new mutable.MapBuilder[String, Any, Map[String, Any]](Map())){
+				(map: mutable.MapBuilder[String, Any, Map[String, Any]], key: String) =>
+					map += Tuple2(key, signalState.values.getOrElse(key, 0.0))
+			}.result().toSeq.sortWith((l, r) => signals.indexOf(l._1) < signals.indexOf(r._1))
 
 			interestingValues.map { case (k: String, v: Any) => v }.mkString(",")
 		}
