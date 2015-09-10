@@ -172,10 +172,33 @@ class RoadSegment(val start: GHPoint3D, val end: GHPoint3D, val speedLimit: Doub
 	})
 
 
-	var roadSign = None: Option[RoadSign]
+	var roadSign: Option[RoadSign] = None
 
-	def setRoadSign(sign: RoadSign) : Unit = roadSign = Some(sign)
-	def setRoadSign(sign: Option[RoadSign]) : Unit = roadSign = sign
+	def setRoadSign(sign: RoadSign): Unit = roadSign = Some(sign)
+
+	def setRoadSign(sign: Option[RoadSign]): Unit = roadSign = sign
+
+
+	var roadName: Option[String] = None
+
+	def setRoadName(name: String): Unit = roadName = Some(name)
+
+	def setRoadName(name: Option[String]): Unit = roadName = name
+
+	/**
+	 * Checks if the given segment belongs to the same road as this one.
+	 *
+	 * This is a rather weak check as it just checks for the name that is assigned to the segments. It might give wrong
+	 * results if segments in two areas are compared and both streets by chance have the same name. This is however pretty
+	 * unlikely for our purpose, so we can live with that.
+	 */
+	def isOnSameRoadAs(other: RoadSegment): Boolean = {
+		val names = List(roadName, other.roadName).flatten
+
+		(!names.isEmpty && names.size == 2 && names.head == names.tail.head)
+	}
+
+
 
 	/**
 	 * Returns the angle necessary to get from this segment to the given segment.

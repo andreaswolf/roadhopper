@@ -31,6 +31,11 @@ class RoadSegmentTest extends FunSuite {
 		}
 	}
 
+
+	/***************************************/
+	/** Segment equality                  **/
+	/***************************************/
+
 	test("Segments are equal for same start and end") {
 		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
 		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
@@ -42,6 +47,11 @@ class RoadSegmentTest extends FunSuite {
 		val b: GHPoint3D = new GHPoint3D(49.01, 8.01, 0.0)
 		assert(new RoadSegment(a, b) != new RoadSegment(b, a))
 	}
+
+
+	/***************************************/
+	/** Speed limit                       **/
+	/***************************************/
 
 	test("Default speed limit is 50 km/h") {
 		val a: GHPoint3D = new GHPoint3D(49.0, 8.0, 0.0)
@@ -58,5 +68,64 @@ class RoadSegmentTest extends FunSuite {
 
 		assert(subject.speedLimit == 20.0)
 	}
+
+
+	/***************************************/
+	/** Road name                         **/
+	/***************************************/
+
+	test("Segments don’t belong to same road if none has a name") {
+		val segmentA = mockSegment()
+		val segmentB = mockSegment()
+
+		assertResult(false)(segmentA isOnSameRoadAs segmentB)
+	}
+
+	test("Segments don’t belong to same road if only first has a name") {
+		val segmentA = mockSegment()
+		segmentA.setRoadName("foo")
+		val segmentB = mockSegment()
+
+		assertResult(false)(segmentA isOnSameRoadAs segmentB)
+	}
+
+	test("Segments don’t belong to same road if only second has a name") {
+		val segmentA = mockSegment()
+		val segmentB = mockSegment()
+		segmentB.setRoadName("foo")
+
+		assertResult(false)(segmentA isOnSameRoadAs segmentB)
+	}
+
+	test("Segments don’t belong to same road if both have different names") {
+		val segmentA = mockSegment()
+		segmentA.setRoadName("foo")
+		val segmentB = mockSegment()
+		segmentB.setRoadName("bar")
+
+		assertResult(false)(segmentA isOnSameRoadAs segmentB)
+	}
+
+	test("Segments belong to same road if both have the same name") {
+		val segmentA = mockSegment()
+		segmentA.setRoadName("foo")
+		val segmentB = mockSegment()
+		segmentB.setRoadName("foo")
+
+		assertResult(true)(segmentA isOnSameRoadAs segmentB)
+	}
+
+
+	/***************************************/
+	/** Helper functions                  **/
+	/***************************************/
+
+	/**
+	 * Returns a road segment with mocked coordinates
+	 */
+	def mockSegment() = new RoadSegment(
+		new GHPoint3D((Math.random() - 0.5) * 360, (Math.random() - 0.5) * 360, Math.random() * 250),
+		new GHPoint3D((Math.random() - 0.5) * 360, (Math.random() - 0.5) * 360, Math.random() * 250)
+	)
 
 }

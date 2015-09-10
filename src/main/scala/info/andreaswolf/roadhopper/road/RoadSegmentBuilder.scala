@@ -18,6 +18,8 @@ class RoadSegmentBuilder {
 
 	private var _speedLimit: Option[Double] = None
 
+	private var _name: Option[String] = None
+
 	def start = _start
 
 	def start_=(point: GHPoint3D) = _start = Some(point)
@@ -58,11 +60,25 @@ class RoadSegmentBuilder {
 	}
 
 
-	def build = {
-		if (_speedLimit.isDefined) {
-			new RoadSegment(_start.get, _end.get, speedLimit = _speedLimit.get)
-		} else {
-			RoadSegment.fromPoints(_start.get, _end.get)
-		}
+	def name = _name
+
+	def name_=(name: String) = _name = Some(name)
+
+	def name(name: String): RoadSegmentBuilder = {
+		this.name = name
+		this
+	}
+
+
+	def build: RoadSegment = {
+		// TODO find a better way to only pass a value if it is defined
+		val segment = if (_speedLimit.isDefined) {
+				new RoadSegment(_start.get, _end.get, speedLimit = _speedLimit.get)
+			} else {
+				RoadSegment.fromPoints(_start.get, _end.get)
+			}
+		segment.setRoadName(_name)
+
+		segment
 	}
 }

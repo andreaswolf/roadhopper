@@ -32,6 +32,7 @@ object RouteFactory {
 					lastSegment.start, currentSegment.end, currentSegment.speedLimit
 				)
 				newSegment.setRoadSign(currentSegment.roadSign)
+				newSegment.setRoadName(currentSegment.roadName)
 				segments update(0, newSegment)
 			} else {
 				segments prepend currentSegment
@@ -85,6 +86,7 @@ class RouteFactory(val hopper: RoadHopper) {
 								.start(p.getLat, p.getLon, p.getEle)
 								.end(point.getLat, point.getLon, point.getEle)
 								.speedLimit(maximumSpeed)
+								.name(edge.getName)
 								.build
 						})
 						lastPoint = Some(point)
