@@ -10,6 +10,16 @@ class RoadBuilder(val start: GHPoint3D) {
 	val segments = new ListBuffer[RoadSegment]()
 
 
+	var analyzeTurns = false
+	private val _roadBendAnalyzer = new RoadBendAnalyzer()
+
+
+	/**
+	 * Adds a segment with the given length and orientation.
+	 *
+	 * @param length The length in meters
+	 * @param orientation The orientation of the new segment in degrees
+	 */
 	def addSegment(length: Double, orientation: Double): RoadBuilder = {
 		val radians = orientation.toRadians
 
@@ -22,6 +32,9 @@ class RoadBuilder(val start: GHPoint3D) {
 		this
 	}
 
+	/**
+	 * Adds a segment with the defined end point
+	 */
 	def addSegment(end: GHPoint3D): RoadBuilder = {
 		if (segments.isEmpty) {
 			if (start.equals(end)) {
@@ -38,8 +51,20 @@ class RoadBuilder(val start: GHPoint3D) {
 		this
 	}
 
-	def build = segments.toList
+	def enableTurnAnalysis() = {
+		analyzeTurns = true
 
-	def buildRoute = new Route(segments.toList)
+		this
+	}
+
+	def build() = {
+		if (analyzeTurns) {
+			_roadBendAnalyzer.markTurns(segments.toList)
+		} else {
+			segments.toList
+		}
+	}
+
+	def buildRoute = new Route(build())
 
 }
