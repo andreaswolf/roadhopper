@@ -61,6 +61,11 @@ class GeoJsonEncoder
 		partInfo.put("length", segment.length());
 		partInfo.put("orientation", segment.orientation());
 		partInfo.put("grade", segment.grade());
+		if (segment.roadName().isDefined()) {
+			partInfo.put("road", segment.roadName().get());
+		} else {
+			partInfo.put("road", "");
+		}
 		partInfo.put("speedLimit", segment.speedLimit());
 	}
 

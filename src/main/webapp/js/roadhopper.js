@@ -137,6 +137,7 @@ var roadhopper = {
 					layer.bindPopup(i + " - Länge: " + feature.length.toFixed(0) + "<br/>"
 						+ "orientation: " + toNormalizedDegrees(feature.orientation) + "°<br />"
 						+ "speed limit: " + (feature["speedLimit"] * 3.6).toFixed(0) + " km/h<br />"
+						+ "road: " + feature["road"] + "<br />"
 						+ "grade: " + toDegrees(feature.grade) + "°"
 					);
 				}
