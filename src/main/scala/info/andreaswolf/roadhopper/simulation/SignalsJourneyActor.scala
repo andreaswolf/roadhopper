@@ -50,7 +50,7 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 	 */
 	var travelledUntilCurrentSegment = 0.0
 
-	var currentTime = 0
+	var currentRoadSet = false
 
 	var travelledDistance = 0.0
 	def currentPosition = currentSegmentRest.start
@@ -66,16 +66,29 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 	def updateRoad(): Future[Any] = {
 		// TODO dynamically calculate the distance to get (e.g. based on speed) or get it passed with the request
 		// check if we have probably advanced past the current segment
+		val oldSegment = currentSegment
 		val segmentChanged = checkCurrentSegment()
 		updateCurrentSegmentRest()
 
 		val futures = ListBuffer[Future[Any]]()
 		futures += signalBus ? UpdateSignalValue("pos", currentSegmentRest.start)
-		if (segmentChanged) {
+
+		// Update the segment-related signals. We must also do this for the first step, to get the velocity limit etc. into
+		// the controller
+		if (!currentRoadSet || segmentChanged) {
+			currentRoadSet = true
+
+			if (!(oldSegment isOnSameRoadAs currentSegment)) {
+				log.info(s"Switched road from ${oldSegment.roadName.getOrElse("-unknown-")}" +
+					s" to ${currentSegment.roadName.getOrElse("-unknown-")}")
+				futures append signalBus ? UpdateSignalValue("road", currentSegment.roadName.getOrElse("-unknown-"))
+			}
+
 			futures append signalBus ? UpdateSignalValue("seg", currentSegment)
 			futures append signalBus ? UpdateSignalValue("grade", currentSegment.grade)
 			futures append signalBus ? UpdateSignalValue("v_limit", currentSegment.speedLimit)
 		}
+
 		Future.sequence(futures.toList)
 	}
 
