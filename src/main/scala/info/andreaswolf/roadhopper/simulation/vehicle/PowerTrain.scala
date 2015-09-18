@@ -33,7 +33,7 @@ class Brake(val inputSignalName: String, val outputSignalName: String, val delay
 		 * @return The new output value
 		 */
 		override def computeOutput(currentInput: Double, timeSpan: Int): Double = {
-			currentInput.round.min(100.0 toLong).max(0.0 toLong)
+			currentInput.round.min(100).max(0)
 		}
 	}
 
@@ -65,7 +65,7 @@ class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef) exte
 	 * Calculate the engine force
 	 */
 	override def invoke(signals: SignalState): Future[Any] = {
-		val loadFactor = signals.signalValue("alpha*", 0.0).round.min(100.0 toLong).max(0.0 toLong)
+		val loadFactor = signals.signalValue("alpha*", 0.0).round.min(100).max(0)
 		val wheelAngularVelocity: Double =
 			// make sure the vehicle is not rolling backwards; even if it is, the engine will only move it forward
 			Math.max(0.0, signals.signalValue("v", 0.0)) / (2.0 * Math.PI * vehicleParameters.wheelRadius / 100.0)

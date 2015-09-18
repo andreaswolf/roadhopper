@@ -92,6 +92,7 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 			}
 
 			futures append signalBus ? UpdateSignalValue("seg", currentSegment)
+			futures append signalBus ? UpdateSignalValue("heading", currentSegment.orientation)
 			futures append signalBus ? UpdateSignalValue("grade", currentSegment.grade)
 			futures append signalBus ? UpdateSignalValue("v_limit", currentSegment.speedLimit)
 		}
