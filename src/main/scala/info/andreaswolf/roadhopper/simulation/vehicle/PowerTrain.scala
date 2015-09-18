@@ -89,7 +89,9 @@ class Engine(val vehicleParameters: VehicleParameters, signalBus: ActorRef) exte
 	}
 
 	// The delay of the torque from the motor to the wheels
-	val powerTrainInertia = context.actorOf(Props(new PT1("M", "M*", 100, bus = signalBus)))
+	val powerTrainInertia = context.actorOf(Props(
+		new PT1("M", "M*", timeConstant = 100, amplification = vehicleParameters.transmissionRatio, bus = signalBus)
+	))
 
 	Await.result(Future.sequence(List(
 		signalBus ? SubscribeToSignal("M", powerTrainInertia),
@@ -131,7 +133,8 @@ class Wheels(val vehicleParameters: VehicleParameters, bus: ActorRef) extends Pr
 		val dragForce = (0.5 * airDensity
 			* vehicleParameters.dragCoefficient * vehicleParameters.dragReferenceArea * currentVelocity * currentVelocity)
 
-		val engineForce: Double = signals.signalValue("M", 0.0) * vehicleParameters.transmissionRatio / (vehicleParameters.wheelRadius / 100.0)
+		// M* is the engine torque in [Nm]. Dividing it by the wheel radius (in [m]!) results in the force in Newton.
+		val engineForce: Double = signals.signalValue("M*", 0.0) / (vehicleParameters.wheelRadius / 100.0)
 
 		val brakeForce = currentVelocity match {
 			case x if x > 0.0 =>
