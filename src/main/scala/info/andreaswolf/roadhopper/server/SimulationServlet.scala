@@ -79,10 +79,11 @@ class SimulationServlet extends GraphHopperServlet {
 		jsonContents.put("status", if (simulation.isFinished) "finished" else "running")
 
 		val json = new JSONObject(JavaConversions.mapAsJavaMap(jsonContents))
-		res.getWriter.append(json.toString)
-
 		res.setStatus(200)
+		res.setContentType("application/json")
 		res.setCharacterEncoding("UTF-8")
+
+		res.getWriter.append(json.toString)
 	}
 
 }

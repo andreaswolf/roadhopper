@@ -45,6 +45,9 @@ class SimulationStatusServlet extends BaseServlet {
 		}
 		status.key("time").value(simulation.result.map.keySet.max)
 
+		resp.setContentType("application/json")
+		resp.setCharacterEncoding("UTF-8")
+		resp.setStatus(200)
 		resp.getWriter.append(status.endObject().toString)
 	}
 }

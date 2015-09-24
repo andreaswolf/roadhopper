@@ -86,9 +86,16 @@ class MeasurementsServlet extends BaseServlet {
 				case "json" => new JsonExporter()
 				case "csv" => new CsvExporter()
 			}
+			resp.setContentType(format match {
+				case "json" => "application/json"
+				case "csv" => "text/csv"
+			})
 
 			resp.getWriter.append(exporter.exportMeasurement(measurementObject))
 		}
+
+		resp.setStatus(200)
+		resp.setCharacterEncoding("UTF-8")
 	}
 
 
