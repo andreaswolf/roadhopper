@@ -29,6 +29,9 @@ class VelocityController(bus: ActorRef) extends Process(bus) with ActorLogging {
 	)), 1 second)
 
 	override def invoke(signals: SignalState): Future[Any] = {
+		if (time % 500 > 0) {
+			return Future.successful()
+		}
 		val actualVelocity: Double = signals.signalValue("v", 0.0)
 		val targetVelocity: Double = signals.signalValue("v_target", 0.0)
 		val velocityDifference = actualVelocity - targetVelocity
