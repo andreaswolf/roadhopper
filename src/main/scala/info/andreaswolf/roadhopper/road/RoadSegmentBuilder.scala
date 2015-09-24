@@ -13,6 +13,15 @@ import com.graphhopper.util.shapes.GHPoint3D
  */
 class RoadSegmentBuilder {
 
+	/**
+	 * The earth’s radius as defined for WGS84.
+	 */
+	val R = 6371000
+
+	var eleProvider: ElevationProvider = new HighPrecisionSRTMProvider
+
+
+
 	private var _start: Option[GHPoint3D] = None
 	private var _end: Option[GHPoint3D] = None
 
@@ -46,6 +55,21 @@ class RoadSegmentBuilder {
 
 	def end(lat: Double, lon: Double, ele: Double): RoadSegmentBuilder = {
 		this.end = new GHPoint3D(lat, lon, ele)
+		this
+	}
+
+	def end(length: Int, orientation: Double): RoadSegmentBuilder = {
+		// see http://www.movable-type.co.uk/scripts/latlong.html
+		val startLat = start.get.lat.toRadians
+		val startLon = start.get.lon.toRadians
+
+		val newLat = Math.asin(Math.sin(startLat) * Math.cos(length.toDouble / R) +
+			Math.cos(startLat) * Math.sin(length.toDouble / R) * Math.cos(orientation))
+		val newLon = startLon + Math.atan2(Math.sin(orientation) * Math.sin(length.toDouble / R) * Math.cos(startLat),
+			Math.cos(length.toDouble / R) - Math.sin(startLat) * Math.sin(newLat))
+
+		this.end = new GHPoint3D(newLat.toDegrees, newLon.toDegrees, eleProvider.getEle(newLat.toDegrees, newLon.toDegrees))
+
 		this
 	}
 
