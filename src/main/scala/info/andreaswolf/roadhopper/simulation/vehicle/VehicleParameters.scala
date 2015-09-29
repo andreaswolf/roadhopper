@@ -19,6 +19,17 @@ object VehicleParameters {
 		transmissionRatio = 10.0,
 		maximumBrakingForce = 200
 	)
+
+	val Ampera = new VehicleParameters(
+		mass = 1732,
+		dragCoefficient = 0.27, dragReferenceArea = 2.57,
+		// wheel radius rounded from 33.4 cm
+		wheelRadius = 33, wheelDragCoefficient = 0.012,
+		maximumEnginePower = 111000, maximumEngineTorque = 370, maximumEngineRpm = 12000,
+		engineEfficiencyFactor = 95,
+		transmissionRatio = 9.4,
+		maximumBrakingForce = 500
+	)
 }
 
 /**
@@ -34,6 +45,7 @@ object VehicleParameters {
  * @param maximumEngineRpm The maximum rotational speed of the engine (rotations per minute)
  * @param engineEfficiencyFactor The efficiency in percent
  * @param transmissionRatio The transmission ratio from the engine to the axle
+ * @param maximumBrakingForce The maximum braking force in Newton
  */
 class VehicleParameters(val mass: Int,
                         val dragCoefficient: Double, val dragReferenceArea: Double,

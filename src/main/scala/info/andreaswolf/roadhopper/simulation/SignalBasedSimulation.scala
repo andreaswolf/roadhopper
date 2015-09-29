@@ -78,16 +78,16 @@ class SignalBasedSimulation(val simulationParameters: SimulationParameters, over
 
 	val journey = actorSystem.actorOf(Props(new SignalsJourneyActor(timer, signalBus, simulationParameters.route)), "journey")
 	val velocityEstimator = actorSystem.actorOf(Props(new TargetVelocityEstimator(signalBus, journey)))
-	val driver = actorSystem.actorOf(Props(new VelocityController(signalBus)))
+	val targetVelocityCalculator = actorSystem.actorOf(Props(new VelocityController(signalBus)))
 	val velocityController = actorSystem.actorOf(Props(
 		new PIDController("v_diff", "alpha_in",
 			simulationParameters.velocityController.proportionalGain, simulationParameters.velocityController.integratorGain,
 			simulationParameters.velocityController.differentiatorGain, signalBus)
 	))
 
-	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 100, simulationParameters.pedal.gasPedalGain, 0.0, signalBus)))
-	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 100, simulationParameters.pedal.brakePedalGain, 0.0, signalBus)))
-	val brake = actorSystem.actorOf(Props(new Brake("beta", "beta*", 100, signalBus)))
+	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 10, simulationParameters.pedal.gasPedalGain, 0.0, signalBus)))
+	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 10, simulationParameters.pedal.brakePedalGain, 0.0, signalBus)))
+	val brake = actorSystem.actorOf(Props(new Brake("beta", "beta*", 10, signalBus)))
 
 	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, result, 50)))
 
