@@ -104,6 +104,15 @@ class RouteFactory(val hopper: RoadHopper) {
 				}
 			}
 		}
+		// Insert a short segment of 5 meters length with a very low speed limit at the end.
+		// The speed limit must not be 0.0, as these are filtered out in TargetVelocityEstimator, because 0.0 might also
+		// mean "no speed limit defined"—this can e.g. happen oi.
+		segments.append(new RoadSegmentBuilder()
+			.start(lastPoint.get)
+			.end(5, segments.last.orientation + 5.0.toRadians)
+			.speedLimit(0.01)
+			.build
+		)
 
 		new Route(segments.result())
 	}
