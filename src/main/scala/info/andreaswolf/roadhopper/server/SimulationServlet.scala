@@ -50,7 +50,7 @@ class SimulationServlet extends GraphHopperServlet {
 		}
 
 		val simulationParameters = new SimulationParameters(
-			pedal = new PedalParameters(gasPedalGain = 500.0, brakePedalGain = -500.0),
+			pedal = new PedalParameters(gasPedalGain = 100.0, brakePedalGain = -200.0),
 			vehicle = VehicleParameters.CompactCar,
 			route = route
 		)

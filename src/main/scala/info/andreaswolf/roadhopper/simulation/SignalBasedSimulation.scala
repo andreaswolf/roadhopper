@@ -41,7 +41,7 @@ object SignalBasedSimulation extends App {
 		val route = routeFactory.simplify(routeFactory.getRoute(points).parts, 2.0)
 
 		val simulation: SignalBasedSimulation = new SignalBasedSimulation(new SimulationParameters(
-			pedal = new PedalParameters(gasPedalGain = 500.0, brakePedalGain = -500.0),
+			pedal = new PedalParameters(gasPedalGain = 100.0, brakePedalGain = -200.0),
 			vehicle = VehicleParameters.CompactCar,
 			route = route
 		), new SimulationResult)
