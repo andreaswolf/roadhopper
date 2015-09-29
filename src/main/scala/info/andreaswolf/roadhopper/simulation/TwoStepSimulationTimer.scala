@@ -27,10 +27,16 @@ case class ScheduleStep(time: Int, actor: ActorRef)
 
 
 /**
- * A simulation timer that breaks each step into two phases: an update and an act phase. In the update phase, each
- * component should update its internal state, however it might have changed since the last step.
+ * A simulation timer that breaks each step into two phases: an update and an act phase.
+ * <p/>
+ * In the update phase, each component should update its internal state, however it might have changed since the
+ * last step.
+ * <p/>
  * In the act phase, the components can ask each other for their state and react to state changes, e.g. by adjusting
  * their state and future behaviour.
+ * <p/>
+ * This timer will only call "real" components. Signal-based processes are registered here, but their actual invocation
+ * is handled by [[info.andreaswolf.roadhopper.simulation.signals.SignalBus]].
  */
 class TwoStepSimulationTimer extends Actor with ActorLogging {
 
@@ -38,10 +44,20 @@ class TwoStepSimulationTimer extends Actor with ActorLogging {
 
 	var running = false
 
+	/**
+	 * All registered actors
+	 */
 	val actors = new ListBuffer[ActorRef]()
 
+	/**
+	 * All registered processes, i.e. components that listen to signals. Their actual invocations are scheduled by
+	 * the signal bus. They are only registered in this class so we can inform them about a new time.
+	 */
 	val processes = new ListBuffer[ActorRef]()
 
+	/**
+	 * All scheduled invocations of actors (not processes!), indexed by the time they should be called.
+	 */
 	val timeSchedule = new mutable.HashMap[Int, ListBuffer[ActorRef]]()
 
 	implicit val timeout = Timeout(60 seconds)
