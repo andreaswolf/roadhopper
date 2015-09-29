@@ -74,7 +74,7 @@ class SignalBasedSimulation(val simulationParameters: SimulationParameters, over
 	val timer = actorSystem.actorOf(Props(new TwoStepSimulationTimer), "timer")
 	val signalBus = actorSystem.actorOf(Props(new SignalBus(timer)), "signalBus")
 
-	val vehicle = new VehicleFactory(actorSystem, timer, signalBus).createVehicle(VehicleParameters.CompactCar)
+	val vehicle = new VehicleFactory(actorSystem, timer, signalBus).createVehicle(simulationParameters.vehicle)
 
 	val journey = actorSystem.actorOf(Props(new SignalsJourneyActor(timer, signalBus, simulationParameters.route)), "journey")
 	val velocityEstimator = actorSystem.actorOf(Props(new TargetVelocityEstimator(signalBus, journey)))
