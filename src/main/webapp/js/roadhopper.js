@@ -346,7 +346,7 @@ GHRequest.prototype.createURL = function () {
 TimeSeriesDataSet = function(data) {
 	this.timestamps = [];
 	this.coordinates = [];
-	this.data = data;
+	this.data = {};
 
 	// Extract all timestamps and coordinates from the data
 	for (var time in data) {
@@ -357,6 +357,7 @@ TimeSeriesDataSet = function(data) {
 			}
 			this.timestamps.push(parseInt(time));
 			this.coordinates.push([data[time]["position"]["lon"], data[time]["position"]["lat"]]);
+			this.data[parseInt(time)] = data[time];
 		}
 	}
 };
@@ -381,15 +382,15 @@ TimeSeriesDataSet.prototype.hasTime = function(time) {
 };
 
 TimeSeriesDataSet.prototype.directionForTime = function(time) {
-	return this.data[time.toString()]["direction"];
+	return this.data[time]["direction"];
 };
 
 TimeSeriesDataSet.prototype.positionForTime = function(time) {
-	return this.data[time.toString()]["position"];
+	return this.data[time]["position"];
 };
 
 TimeSeriesDataSet.prototype.speedForTime = function(time) {
-	return this.data[time.toString()]["speed"];
+	return this.data[time]["speed"];
 };
 
 TimeSeriesDataSet.prototype.getTimestepSize = function () {
