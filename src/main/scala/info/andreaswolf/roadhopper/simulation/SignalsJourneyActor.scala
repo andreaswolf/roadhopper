@@ -185,7 +185,7 @@ class SignalsJourneyActor(val timer: ActorRef, val signalBus: ActorRef, val rout
 	 * b) if we travelled until after this segment’s end.
 	 */
 	def journeyEnded: Boolean = {
-		remainingSegments.isEmpty && remainingOnCurrentSegment < 0.0
+		remainingSegments.isEmpty && remainingOnCurrentSegment < 0.0 || !active
 	}
 
 	/**
