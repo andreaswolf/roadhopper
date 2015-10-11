@@ -421,7 +421,10 @@ TimeSeriesPlayback.prototype.setData = function(timeSeries) {
 		this.draw();
 	}
 	this.playback.clearData();
-	L.setOptions(this.playback, {tickLen: timeSeries.getTimestepSize()});
+	var timestepSize = timeSeries.getTimestepSize();
+	this.playback._tickLen = timestepSize;
+	L.setOptions(this.playback, {tickLen: timestepSize});
+	this.playback._trackController._tic
 	this.timeSeries = timeSeries;
 	this.playback.setData(timeSeries.asGeoJSON());
 };
