@@ -85,9 +85,9 @@ class SignalBasedSimulation(val simulationParameters: SimulationParameters, over
 			simulationParameters.velocityController.differentiatorGain, signalBus)
 	))
 
-	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 10, simulationParameters.pedal.gasPedalGain, 0.0, signalBus)))
-	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 10, simulationParameters.pedal.brakePedalGain, 0.0, signalBus)))
-	val brake = actorSystem.actorOf(Props(new Brake("beta", "beta*", 10, signalBus)))
+	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 100, simulationParameters.pedal.gasPedalGain, 0.0, signalBus)))
+	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 100, simulationParameters.pedal.brakePedalGain, 0.0, signalBus)))
+	val brake = actorSystem.actorOf(Props(new Brake("beta", "beta*", 100, signalBus)))
 
 	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, result, 50)))
 
