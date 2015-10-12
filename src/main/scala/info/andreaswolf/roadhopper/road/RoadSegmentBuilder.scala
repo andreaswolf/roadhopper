@@ -6,6 +6,7 @@
 
 package info.andreaswolf.roadhopper.road
 
+import com.graphhopper.reader.dem.{ElevationProvider, HighPrecisionSRTMProvider}
 import com.graphhopper.util.shapes.GHPoint3D
 
 /**
