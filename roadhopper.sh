@@ -1,6 +1,7 @@
 #!/bin/sh
 
-CP="-classpath roadhopper-0.1-SNAPSHOT-standalone.jar:lib/\*"
+# the current directory is included because the log4j properties won't be found otherwise
+CP="-classpath .:roadhopper-0.1-SNAPSHOT-standalone.jar:lib/\*"
 
 if [ "$OSMFILE" == "" ]; then
 	if [ "" == "$1" ]; then
@@ -19,6 +20,7 @@ else
 fi
 
 OPT="$OPT -Djetty.port=8989"
+# the log4j config file will be searched in the classpath (see $CP above)
 OPT="$OPT -Dlog4j.configuration=log4j.properties"
 OPT="$OPT -Dconfig.file=./application.conf"
 OPT="$OPT -Dorientdb.config.file=./orientdb/orientdb-server-config.xml"
