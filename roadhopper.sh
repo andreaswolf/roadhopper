@@ -8,8 +8,12 @@ if [ "$OSMFILE" == "" ]; then
 		echo "Please configure an OSM file either via setting the OSMFILE environment variable or by passing it as the first argument to $0"
 		exit 1
 	else
-		# TODO check if file really exists
-		OSMFILE=$1
+		if [ -f "$1" ]; then
+			OSMFILE=$1
+		else
+			echo "OSM file $1 does not exist."
+			exit 2
+		fi
 	fi
 fi
 
