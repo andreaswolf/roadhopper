@@ -62,7 +62,7 @@ installed.
 
 To build the distribution, run
 
-   mvn dependency:copy-dependencies install jar:jar assembly:single
+   mvn dependency:copy-dependencies install package
 
 
 Troubleshooting
