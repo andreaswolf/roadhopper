@@ -126,8 +126,11 @@ var roadhopper = {
 			},
 			style: function (feature) {
 				return {
-					color: gradeColor(feature.geometry.grade || 0.0), /*randomColor(),*/
-					"weight": (Math.abs(feature.geometry.grade) < 0.1) ? 5 : 10,
+					// to color by the grade instead of a random number, use this instead:
+					// color: gradeColor(feature.geometry.grade || 0.0),
+					// "weight": (Math.abs(feature.geometry.grade) < 0.1) ? 5 : 10,
+					color: randomColor(),
+					"weight": 5,
 					"opacity": 1
 				};
 			},
