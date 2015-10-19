@@ -33,6 +33,13 @@
 			</includes>
 		</fileSet>
 		<fileSet>
+			<directory>${project.basedir}/build/defaults/</directory>
+			<outputDirectory/>
+			<includes>
+				<include>log4j.properties</include>
+			</includes>
+		</fileSet>
+		<fileSet>
 			<directory>${project.basedir}</directory>
 			<outputDirectory/>
 			<includes>
