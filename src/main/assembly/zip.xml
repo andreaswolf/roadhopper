@@ -28,10 +28,18 @@
 				<include>LICENSE*</include>
 				<include>CONTRIBUTORS*</include>
 				<include>config-example.properties</include>
-				<include>roadhopper.sh</include>
 				<include>orientdb/orientdb-server-config.xml</include>
 				<include>application.conf</include>
 			</includes>
+		</fileSet>
+		<fileSet>
+			<directory>${project.basedir}</directory>
+			<outputDirectory/>
+			<includes>
+				<include>roadhopper.sh</include>
+			</includes>
+			<lineEnding>unix</lineEnding>
+			<fileMode>0755</fileMode>
 		</fileSet>
 		<fileSet>
 			<directory>${project.build.directory}</directory>
