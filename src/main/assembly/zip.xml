@@ -31,6 +31,7 @@
 				<include>orientdb/orientdb-server-config.xml</include>
 				<include>application.conf</include>
 			</includes>
+			<fileMode>0644</fileMode>
 		</fileSet>
 		<fileSet>
 			<directory>${project.basedir}/build/defaults/</directory>
@@ -55,6 +56,7 @@
 				<include>lib/**</include>
 				<include>*-standalone.jar</include>
 			</includes>
+			<fileMode>0644</fileMode>
 		</fileSet>
 	</fileSets>
 </assembly>
