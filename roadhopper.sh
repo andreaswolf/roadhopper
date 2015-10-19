@@ -12,12 +12,18 @@ if [ "$OSMFILE" == "" ]; then
 	fi
 fi
 
+if [ -f "config.properties" ]; then
+	CONFIGFILE="config.properties"
+else
+	CONFIGFILE="config-example.properties"
+fi
+
 OPT="$OPT -Djetty.port=8989"
 OPT="$OPT -Dlog4j.configuration=log4j.properties"
 OPT="$OPT -Dconfig.file=./application.conf"
 OPT="$OPT -Dorientdb.config.file=./orientdb/orientdb-server-config.xml"
 OPT="$OPT -DORIENTDB_HOME=./orientdb/"
-CONFIG="$CONFIG config=./config.properties"
+CONFIG="$CONFIG config=./$CONFIGFILE"
 CONFIG="$CONFIG jetty.resourcebase=./webapp/"
 CONFIG="$CONFIG graph.location=./osm.graph/"
 CONFIG="$CONFIG osmreader.osm=$OSMFILE"
