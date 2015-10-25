@@ -50,6 +50,14 @@
 			<fileMode>0755</fileMode>
 		</fileSet>
 		<fileSet>
+			<directory>${project.basedir}</directory>
+			<outputDirectory/>
+			<includes>
+				<include>roadhopper.bat</include>
+			</includes>
+			<lineEnding>dos</lineEnding>
+		</fileSet>
+		<fileSet>
 			<directory>${project.build.directory}</directory>
 			<outputDirectory/>
 			<includes>
