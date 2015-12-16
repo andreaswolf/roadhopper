@@ -11,7 +11,8 @@
 
 	var margins = {top: 20, right: 15, bottom: 40, left: 40},
 			height = 200,
-			width = 500;
+			width = 500,
+			positionMarker;
 
 	var drivingCycle = {
 		/**
@@ -121,7 +122,7 @@
 
 
 			var initialPosition = timeSeries.positionForTime(timeSeries.timestamps[0]);
-			var positionMarker = L.circleMarker(new L.LatLng(initialPosition['lat'], initialPosition['lon']), {
+			positionMarker = L.circleMarker(new L.LatLng(initialPosition['lat'], initialPosition['lon']), {
 				clickable: false
 			});
 
