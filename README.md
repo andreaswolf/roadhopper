@@ -8,7 +8,8 @@ The maps data is taken from the [OpenStreetMap](http://openstreetmap.org) projec
 (http://graphhopper.com), an open source routing service for OpenStreetMap.
 
 This project was started during my diploma thesis at the [Hybrid Electric Vehicles research group](http://www.eti.kit.edu/1071.php)
-of the Karlsruhe Institute of Technology. 
+of the Karlsruhe Institute of Technology. The thesis is available [on the web](http://dx.doi.org/10.5445/IR/1000049932);
+occasionally, it is also referenced throughout this software’s documentation.
 
 
 Running RoadHopper
