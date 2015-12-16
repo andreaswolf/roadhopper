@@ -49,6 +49,12 @@ object SignalBasedSimulation extends App {
 	}
 }
 
+/**
+ * Main class of the signal-based simulator.
+ *
+ * @param simulationParameters The parameters to apply (brake/gas pedal gains, vehicle etc.)
+ * @param result Where the simulation results should be stored
+ */
 class SignalBasedSimulation(val simulationParameters: SimulationParameters, override val result: SimulationResult)
 	extends Simulation(result) {
 
@@ -64,6 +70,7 @@ class SignalBasedSimulation(val simulationParameters: SimulationParameters, over
 		), result)
 	}
 
+	/** The route that is travelled during the simulation */
 	val route = simulationParameters.route
 
 	val actorSystem = ActorSystem.create("signals")
@@ -71,12 +78,20 @@ class SignalBasedSimulation(val simulationParameters: SimulationParameters, over
 	import actorSystem.dispatcher
 	implicit val timeout = Timeout(10 seconds)
 
+	/** The two base components of the simulation: the timer and the signal bus;
+	 * in the future, there might be multiple signal busses, e.g. to simulate multiple vehicles or partition the vehicle
+	 * if the simulation gets more fine-grained. */
 	val timer = actorSystem.actorOf(Props(new TwoStepSimulationTimer), "timer")
 	val signalBus = actorSystem.actorOf(Props(new SignalBus(timer)), "signalBus")
 
+	/** The vehicle used in the simulation */
 	val vehicle = new VehicleFactory(actorSystem, timer, signalBus).createVehicle(simulationParameters.vehicle)
 
 	val journey = actorSystem.actorOf(Props(new SignalsJourneyActor(timer, signalBus, simulationParameters.route)), "journey")
+
+	///////////////////////////////////////////////////////////////////////////
+	// Components of the driver model
+	///////////////////////////////////////////////////////////////////////////
 	val velocityEstimator = actorSystem.actorOf(Props(new TargetVelocityEstimator(signalBus, journey)))
 	val targetVelocityCalculator = actorSystem.actorOf(Props(new VelocityController(signalBus)))
 	val velocityController = actorSystem.actorOf(Props(
@@ -85,16 +100,26 @@ class SignalBasedSimulation(val simulationParameters: SimulationParameters, over
 			simulationParameters.velocityController.differentiatorGain, signalBus)
 	))
 
+	///////////////////////////////////////////////////////////////////////////
+	// Pedals and brake system
+	//
+	// The gas pedal connects to the transmission which was created by the
+	// VehicleFactory instance above
+	///////////////////////////////////////////////////////////////////////////
 	val gasPedal = actorSystem.actorOf(Props(new PT1("alpha_in", "alpha", 100, simulationParameters.pedal.gasPedalGain, 0.0, signalBus)))
 	val brakePedal = actorSystem.actorOf(Props(new PT1("alpha_in", "beta", 100, simulationParameters.pedal.brakePedalGain, 0.0, signalBus)))
 	val brake = actorSystem.actorOf(Props(new Brake("beta", "beta*", 100, signalBus)))
 
+	/** The result logger for the simulation run. */
 	val signalLogger = actorSystem.actorOf(Props(new SignalLogger(signalBus, result, 50)))
 
+	/** Invoked to start the simulation by sending the required signal to the timer */
 	def start() = {
 		Future.sequence(List(
 			timer ? RegisterActor(signalBus),
 			timer ? RegisterActor(vehicle),
+			// subscribe all components above to their respective signals; some components also do this on their own
+			// TODO clean up once signal registration and subscription have been streamlined
 			signalBus ? SubscribeToSignal("time", signalLogger),
 			signalBus ? SubscribeToSignal("s", journey),
 			signalBus ? SubscribeToSignal("s", velocityEstimator),
