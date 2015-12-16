@@ -29,29 +29,37 @@ Then, clone RoadHopper into the your GraphHopper directory
 Currently, there are no scripts to run the software, so you need to configure it in your IDE. Create a run configuration
 with the following parameters:
 
-  * Main class: info.andreaswolf.roadhopper.server.RoadHopperServer
-  * VM options: -Djetty.port=8989 -Dconfig.file=./roadhopper/application.conf -Dorientdb.config.file=./roadhopper/orientdb/orientdb-server-config.xml -DORIENTDB_HOME=./roadhopper/orientdb/
-  * Program arguments: jetty.resourcebase=./web/src/main/webapp/ config=./config.properties graph.location=&lt;Path to your data directory&gt; osmreader.osm=&lt;Path to your OSM file&gt; graph.elevation.provider=srtm
+  * Main class: `info.andreaswolf.roadhopper.server.RoadHopperServer`
+  * VM options: `-Djetty.port=8989 -Dconfig.file=./roadhopper/application.conf -Dorientdb.config.file=./roadhopper/orientdb/orientdb-server-config.xml -DORIENTDB_HOME=./roadhopper/orientdb/`
+  * Program arguments: `jetty.resourcebase=./roadhopper/src/main/webapp/ config=./config.properties graph.location=«Path to your data directory» osmreader.osm=«Path to your OSM file» graph.elevation.provider=srtmhigh`
   * Working directory: _Path to GraphHopper_
 
-Keep in mind to replace the paths in &lt;&gt; with the proper locations.
+Keep in mind to replace the paths in «» with the proper locations.
 
-What is also necessary is replacing the dependencies to the com.graphhopper.* modules by references to the modules inside
+What is also necessary is replacing the dependencies to the `com.graphhopper.*` modules by references to the modules inside
 the IDE workspace.
 
 When starting the software, GraphHopper will process the OSM file and create its internal data structure. Afterwards,
 head to http://localhost:8989 and select two points. Then, a simulation will run – currently, a very rough estimate.
 I’m working on that ;-). Afterwards, you see a t–v diagram at the bottom right.
 
+RoadHopper logs a multitude of data during simulation runs, mainly the signal values. To get this data, use the API endpoint `/roadhopper/signalvalues`. The expected query string parameters are
+
+  * the simulation id as `simulation`
+  * the signal names (1..n) as `signal`
+
+An example could be `/roadhopper/signalvalues?simulation=123456789&signal=v&signal=a`.
 
 Measurement Data import
 -----------------------
 
-  * Main class: info.andreaswolf.roadhopper.measurements.Importer
+The data import can be run by using a separate class
+
+  * Main class: `info.andreaswolf.roadhopper.measurements.Importer`
   * VM options, program arguments, working directory: _See above_
 
 The CSV files must be placed in the folder `measurements/` in the configured working directory. To adjust the folder name,
-set the property `measurements.path` in your program options.
+set the property `measurements.path` in your program options (or `config.properties`).
 
 
 Building RoadHopper
@@ -62,7 +70,7 @@ installed.
 
 To build the distribution, run
 
-   mvn dependency:copy-dependencies install package
+    mvn dependency:copy-dependencies install package
 
 
 Troubleshooting
