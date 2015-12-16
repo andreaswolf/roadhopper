@@ -29,5 +29,6 @@ package info.andreaswolf.roadhopper.simulation
  *
  * TODO evaluate creating an encapsulation for the journey as a whole (mainly the route)
  */
+@deprecated
 class JourneyState(val travelledDistance: Double) {
 }

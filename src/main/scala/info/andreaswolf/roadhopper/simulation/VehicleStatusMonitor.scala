@@ -8,6 +8,7 @@ import scala.concurrent.{Future, ExecutionContext}
 import scala.util.Success
 
 
+@deprecated
 class VehicleStatusMonitor(val timer: ActorRef, val interval: Int, val vehicle: ActorRef) extends SimulationActor with ActorLogging {
 
 	/**

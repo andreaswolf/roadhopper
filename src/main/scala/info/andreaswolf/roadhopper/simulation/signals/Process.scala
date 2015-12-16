@@ -77,6 +77,8 @@ abstract class Process(val bus: ActorRef) extends Actor with ExtensibleReceiver 
 	 */
 	def invoke(signals: SignalState): Future[Any] = Future.successful()
 
+	/** Outdated compatibility method we used when the signal bus was not mandatory in this class */
+	@deprecated
 	def invoke(signals: SignalState, bus: ActorRef): Future[Any] = Future.successful()
 
 }

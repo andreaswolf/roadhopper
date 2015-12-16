@@ -6,16 +6,22 @@ import com.graphhopper.util.shapes.GHPoint3D
 
 import scala.concurrent.{Future, ExecutionContext}
 
+@deprecated
 case class Accelerate(value: Double)
 
+@deprecated
 case class Decelerate(value: Double)
 
+@deprecated
 case class SetAcceleration(value: Double)
 
+@deprecated
 case class RequestJourneyStatus()
 
+@deprecated
 case class GetStatus()
 
+@deprecated
 case class JourneyStatus(time: Int, vehicleState: VehicleState, travelledDistance: Double) {
 	def this(time: Int, vehicleState: VehicleState, journeyState: JourneyState) =
 		this(time, vehicleState, journeyState.travelledDistance)

@@ -14,6 +14,7 @@ import scala.util.Success
  * @param interval
  * @param vehicle
  */
+@deprecated
 class SimulationResultLogger(val result: SimulationResult, val timer: ActorRef, val interval: Int,
                              val vehicle: ActorRef) extends SimulationActor with ActorLogging {
 

@@ -9,6 +9,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 
+@deprecated
 class TwoStepDriverActor(val timer: ActorRef, val vehicle: ActorRef, val journey: ActorRef)
 	extends SimulationActor with ActorLogging {
 

@@ -1,8 +1,5 @@
 package info.andreaswolf.roadhopper.simulation
 
-import java.lang.Long
-import java.util.Date
-
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
@@ -16,6 +13,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 
+@deprecated
 object ActorBasedSimulation extends App {
 	override def main(args: Array[String]): Unit = {
 		val cmdArgs = CmdArgs.read(args)
@@ -32,6 +30,7 @@ object ActorBasedSimulation extends App {
 	}
 }
 
+@deprecated
 class ActorBasedSimulation(val route: Route, override val result: SimulationResult) extends Simulation(result) {
 
 	val actorSystem = ActorSystem.create("roadhopper")
