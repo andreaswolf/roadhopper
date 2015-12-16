@@ -12,8 +12,8 @@ of the Karlsruhe Institute of Technology. The thesis is available [on the web](h
 occasionally, it is also referenced throughout this software’s documentation.
 
 
-Running RoadHopper
-------------------
+Running RoadHopper in development mode
+--------------------------------------
 
 To run RoadHopper, you need a custom fork of GraphHopper with a few adjustments necessary for RoadHopper. Also, grab an
 extract from OpenStreetMap from one of the download pages listed at https://wiki.openstreetmap.org/wiki/Downloading_data.
@@ -32,10 +32,10 @@ with the following parameters:
 
   * Main class: `info.andreaswolf.roadhopper.server.RoadHopperServer`
   * VM options: `-Djetty.port=8989 -Dconfig.file=./roadhopper/application.conf -Dorientdb.config.file=./roadhopper/orientdb/orientdb-server-config.xml -DORIENTDB_HOME=./roadhopper/orientdb/`
-  * Program arguments: `jetty.resourcebase=./roadhopper/src/main/webapp/ config=./config.properties graph.location=«Path to your data directory» osmreader.osm=«Path to your OSM file» graph.elevation.provider=srtmhigh`
+  * Program arguments: `config=./config.properties`
   * Working directory: _Path to GraphHopper_
 
-Keep in mind to replace the paths in «» with the proper locations.
+Copy `config-example.properties` to your GraphHopper directory and name it `config.properties`.
 
 What is also necessary is replacing the dependencies to the `com.graphhopper.*` modules by references to the modules inside
 the IDE workspace.
