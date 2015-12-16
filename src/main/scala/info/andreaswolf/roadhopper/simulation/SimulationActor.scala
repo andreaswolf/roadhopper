@@ -7,12 +7,16 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 
+/** Message sent at the beginning of a time step to propagate the new time throughout the system. */
 case class TellTime(time: Int)
 
+/** Tell an actor that the simulation has started */
 case class Start()
 
+/** First of the two phases of a simulation step */
 case class StepUpdate()
 
+/** Second of the two phases of a simulation step */
 case class StepAct()
 
 
@@ -56,10 +60,9 @@ trait SimulationActor extends Actor with ActorLogging with ExtensibleReceiver {
 						originalSender ! true
 				}
 
-			// TODO Make a method that creates a ListBuffer of Futures and turns them into a sequence that is then checked by the individual methods in here
 			case Start() =>
-				// we need to store sender() here as sender() will point to the dead letter mailbox when andThen() is called.
-				// TODO find out why this is the case
+				// we need to store sender() here as the sender reference is lost once this method was executed (and therefore
+				// also in the asynchronously executed andThen {} block).
 				val originalSender = sender()
 				start() andThen {
 					case x =>
