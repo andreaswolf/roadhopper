@@ -22,11 +22,12 @@ object Process {
 
 /**
  * A process is a component that uses one or more signals for calculations.
+ * <p>
+ * The process must be subscribed to the signals it needs for its calculations and is notified by the signal bus
+ * each time one of the signals changes. Additionally, it can update signal values. As these updates could happen
+ * basically anywhere, make sure to properly document the relations between your processes and signals!
  *
- * The process subscribes to the signals it needs for its calculations and is notified by the signal bus each time a
- * signal changes.
- *
- * @param bus The signal bus instance. Optional.
+ * @param bus The signal bus instance.
  */
 abstract class Process(val bus: ActorRef) extends Actor with ExtensibleReceiver {
 
@@ -70,6 +71,7 @@ abstract class Process(val bus: ActorRef) extends Actor with ExtensibleReceiver 
 		}
 	}
 
+	/** Internal handler for a time update. Extend this to do updates before the first delta cycle. */
 	def timeAdvanced(oldTime: Int, newTime: Int): Future[Any] = Future.successful()
 
 	/**
