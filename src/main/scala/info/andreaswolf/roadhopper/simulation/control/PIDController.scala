@@ -15,6 +15,9 @@ import scala.concurrent.Future
 
 /**
  * A controller consisting of a parallel proportional, integral and differential part.
+ *
+ * TODO this might give wrong results if it is not invoked at least once per time cycle, e.g. if the input stays the
+ * same over a long time.
  */
 class PIDController(val inputSignalName: String, val outputSignalName: String,
                     val proportionalGain: Double, val integratorGain: Double, val differentiatorGain: Double,
@@ -33,7 +36,7 @@ class PIDController(val inputSignalName: String, val outputSignalName: String,
 	var currentState: ControllerState[Double] = null
 
 	/**
-	 * This value becomes the current state with the first invocation of [[timeAdvanced()]].
+	 * This value becomes the current state with the next invocation of [[timeAdvanced()]].
 	 */
 	var nextState: ControllerState[Double] = initialState
 
@@ -63,6 +66,8 @@ class PIDController(val inputSignalName: String, val outputSignalName: String,
 			+ differentiator.currentState.currentOutput
 		)
 
+		// only store the new value, but do not directly make it available, as there might be further invocations of
+		// this controller within the current time step. These would then use the new values already, which is wrong.
 		nextState = new ControllerState[Double](output, currentInput, currentState, time)
 
 		bus ? UpdateSignalValue(outputSignalName, output)

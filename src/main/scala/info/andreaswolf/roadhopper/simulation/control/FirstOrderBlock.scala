@@ -40,7 +40,7 @@ abstract class FirstOrderBlock {
 	 * Updates this block’s internal state. The state update is only scheduled (written to [[nextState]]); it is moved
 	 * to [[currentState]] when the next time step is reached (i.e. [[timeAdvanced()]] is called).
 	 *
-	 * @param currentInput The input value to compute
+	 * @param currentInput The input value to compute with
 	 * @return True if the state was updated, false if no time has passed since the current state
 	 */
 	def update(currentInput: Double): Boolean = {
