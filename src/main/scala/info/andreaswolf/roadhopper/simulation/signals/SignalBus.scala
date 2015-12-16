@@ -13,15 +13,20 @@ import scala.util.Try
 
 object SignalBus {
 
+	/** Defines a signal with the given name in the signal bus. */
 	case class DefineSignal(signalName: String)
 
-	/**
+	/** Schedules an update of a signal value for a time step in the future.
+	 *
 	 * @param delta The time (from now on) when the signal should be updated
 	 */
 	case class ScheduleSignalUpdate(delta: Int, signalName: String, newValue: Any)
 
+	/** Updates a signal value. The update is not executed immediately, but held back until the next delta cycle. */
 	case class UpdateSignalValue(signalName: String, newValue: Any)
 
+	/** Subscribes a component to a signal by the signal’s name, letting the component be invoked whenever the signal
+	  * value changes. */
 	case class SubscribeToSignal(signalName: String, subscriber: ActorRef)
 
 }
@@ -30,13 +35,27 @@ object SignalBus {
 /**
  * An implementation of the concept of "signals" as the output of components.
  *
- * One possible signal that components can listen to is the time, which will lead to
- *
  * Signals are declared by a component, other components can subscribe to them (= get notified when the signal changes).
  * With every new time step, an initial update is triggered with the components that listen to the time.
  *
- * Every component can have one or more so-called processes that react to updates of one or more signals. With every
- * update of these signals, the process is triggered.
+ * The signal bus is invoked by the timer during each time step, and subsequently schedules one or more delta cycles,
+ * depending on the behaviour of other components: If a signal is updated during a delta cycle, another delta cycle
+ * is scheduled if there are any components listening to that signal. If no further delta cycle is scheduled, the time
+ * step is finished and the future sent back to the timer is fulfilled, therefore letting it continue to the next time
+ * step.
+ *
+ * Theoretically, we could create endless loops if there is a chain of signals where the first one depends on a change
+ * of the last one. However, this is no real concern when modelling physical systems, as there are always delays due to
+ * inertia etc., which let updates happen "far" in the future (as in "in a future timestep") and not "now" (as in "in
+ * the next delta cycle").
+ *
+ * Signal values are not strongly typed, so you can basically write anything you like to them. However, when reading
+ * back the value, you might need to apply typecasting, for which you will need to know the type.
+ *
+ * The time is the only signal pre-defined by the bus, and this is taken directly from the timer at the beginning of
+ * each invocation. More signals can be defined by sending
+ * [[info.andreaswolf.roadhopper.simulation.signals.SignalBus.DefineSignal]] messages; components can subscribe to
+ * these signals with [[info.andreaswolf.roadhopper.simulation.signals.SignalBus.SubscribeToSignal]] messages.
  */
 class SignalBus(val timer: ActorRef) extends SimulationActor {
 
@@ -57,10 +76,15 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 	 */
 	var signals = new SignalState()
 
+	/** All components that are subscribed to any signal. The map is indexed by the signal name and contains a list of
+	 *  all subscribers as the value. */
 	val subscribers: mutable.HashMap[String, ListBuffer[ActorRef]] = new mutable.HashMap[String, ListBuffer[ActorRef]]()
 
+	/** The updates that are scheduled for the next delta cycle. If this list is not empty, there will definitely be
+	 *  another delta cycle. */
 	val scheduledUpdates: mutable.HashMap[String, Any] = new mutable.HashMap[String, Any]()
 
+	/** Updates scheduled for a future time step. These will be executed in the first delta cycle of the time step. */
 	val futureScheduledUpdates: mutable.HashMap[Int, mutable.HashMap[String, Any]] = new mutable.HashMap[Int, mutable.HashMap[String, Any]]()
 
 	var currentTimeStepPromise: Promise[Any] = Promise.apply[Any]()
@@ -92,7 +116,7 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 
 		case ScheduleSignalUpdate(delta, name, value) =>
 			val updatesForTime = futureScheduledUpdates.getOrElseUpdate(time + delta, new mutable.HashMap[String, Any]())
-			// TODO check if there already is an update scheduled => how to react then?
+			// TODO check if there already is an update scheduled => how to react then? currently the last update wins
 			updatesForTime.put(name, value)
 
 			sender() ! true
@@ -142,8 +166,14 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 
 		{
 			if (cycle == 1) {
+				// TODO this sometimes breaks; find out why
+				// there might not be any scheduled updates now, as a) we are at the beginning of a time step and
+				// b) if there were any scheduled updates left in the previous time step, another delta cycle should have been
+				// scheduled there; so if there are any updates left, this most likely means we have a race condition somewhere
 				assert(scheduledUpdates.isEmpty, "ERROR: Regular updates scheduled for first delta cycle!")
-				scheduledUpdates.clear()
+
+				// get the signal updates that were scheduled for the current time step in earlier time steps (e.g. in
+				// dead time parts)
 				scheduledUpdates ++= futureScheduledUpdates.remove(time).getOrElse(new mutable.HashMap[String, AnyVal]())
 
 				scheduledUpdates.put("time", time)
@@ -153,16 +183,20 @@ class SignalBus(val timer: ActorRef) extends SimulationActor {
 			val updatedSignals = scheduledUpdates.keys.toList
 			// get a list of all subscribers we must notify (by the signals that were updated) and then make sure that
 			// each is only called once (because they might be subscribed to multiple of the updated signals)
-			val subscribersToNotify = subscribers.filter(subscription =>
+			val subscriptionsForUpdatedSignals = subscribers.filter(subscription =>
 				updatedSignals.contains(subscription._1)
-			).flatMap(e => e._2).toList.distinct
-			val futures = subscribersToNotify.map(subscriber => subscriber ? Invoke(signals))
+			)
+			val subscribersToNotify = subscriptionsForUpdatedSignals.flatMap(e => e._2).toList.distinct
+
+			// notify all subscribers to any of the updated signals
+			// TODO this should probably include a list of all signals that were updated
+			val notificationFutures = subscribersToNotify.map(subscriber => subscriber ? Invoke(signals))
 
 			log.info(s"Informed ${subscribersToNotify.length} subscribers about a change of ${updatedSignals.length} signals ($updatedSignals)")
 
 			scheduledUpdates.clear()
 
-			Future.sequence(futures.toList)
+			Future.sequence(notificationFutures.toList)
 		} flatMap { x =>
 			// TODO can we make this non-recursive?
 			runDeltaCycle(cycle + 1)
