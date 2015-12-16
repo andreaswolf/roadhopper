@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 
 
 /**
- *
+ * Component that calculates the velocity difference v_diff, e.g. as input for the PID controller modelling the driver.
  */
 class VelocityController(bus: ActorRef) extends Process(bus) with ActorLogging {
 
@@ -29,6 +29,7 @@ class VelocityController(bus: ActorRef) extends Process(bus) with ActorLogging {
 	)), 1 second)
 
 	override def invoke(signals: SignalState): Future[Any] = {
+		// only run the calculation every 500ms, to approximate human steering behaviour; 500ms was randomly chosen
 		if (time % 500 > 0) {
 			return Future.successful()
 		}
